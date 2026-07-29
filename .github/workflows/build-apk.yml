@@ -36,7 +36,7 @@ jobs:
         run: |
           # Menggunakan konfigurasi JSON langsung tanpa membuat file .ts
           # yes config
-          npx cap add android
+         npx cap sync android
 
       - name: Generate App Icon Automatically
         run: |
