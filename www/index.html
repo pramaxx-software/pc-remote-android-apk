@@ -25,10 +25,12 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        body {
+       body {
             background-color: var(--bg-main);
             color: var(--text-main);
             padding: 15px;
+            /* Tambahan padding atas aman untuk notch / status bar HP */
+            padding-top: max(15px, env(safe-area-inset-top)); 
             display: flex;
             flex-direction: column;
             gap: 15px;
