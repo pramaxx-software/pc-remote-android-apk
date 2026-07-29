@@ -1,0 +1,17 @@
+{
+  "name": "pramaxx-remote-keyboard-app",
+  "version": "1.0.0",
+  "description": "Pramaxx Remote Keyboard Android App",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@capacitor/android": "^5.0.0",
+    "@capacitor/cli": "^5.0.0",
+    "@capacitor/core": "^5.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5"
+  }
+}

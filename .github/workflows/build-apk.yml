@@ -1,0 +1,70 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install Dependencies
+        run: |
+          npm init -y || true
+          npm install
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Initialize & Sync Capacitor Android
+        run: |
+          npx cap init "Remote Macro Pad" "com.remotepad.app" --web-dir "www" --yes || true
+          npx cap add android
+
+      - name: Generate App Icon Automatically
+        run: |
+          # Generate icon menggunakan @capacitor/assets dengan warna latar belakang senada dengan tema app (#0f172a)
+          npx capacitor-assets generate --iconBackgroundColor "#0f172a"
+          npx cap sync android
+
+      - name: Build Android APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Generate Auto Versioning Tag
+        id: version
+        run: |
+          VERSION="v1.0.${{ github.run_number }}"
+          echo "tag=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release & Upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Remote Macro Pad ${{ steps.version.outputs.tag }}"
+          body: |
+            ### 🚀 Update Otomatis Remote Macro Pad
+            - Auto-generated APK dari GitHub Actions.
+            - Mendukung fitur Hold-to-Repeat & Custom Stream Deck UI.
+            - Silakan download file `app-debug.apk` di bawah untuk diinstal ke HP Android.
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
