@@ -35,7 +35,7 @@ jobs:
       - name: Add Capacitor Android Platform
         run: |
           # Menggunakan konfigurasi JSON langsung tanpa membuat file .ts
-          npx cap add android --yes
+          npx cap add android
 
       - name: Generate App Icon Automatically
         run: |
