@@ -1,7 +1,7 @@
 {
   "name": "Pramaxx Remote",
   "version": "1.0.0",
-  "type": "commonjs",
+  "type": "module",
   "description": "Pramaxx Remote Keyboard Android App",
   "main": "index.js",
   "scripts": {
