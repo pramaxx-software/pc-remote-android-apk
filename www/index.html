@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Pramaxx Remote Keyboard</title>
+    
+    <!-- TAMBAHAN: Library Scanner QR Code -->
+    <script src="htmlqrcode.min.js"></script>
+
     <style>
         :root {
             --bg-main: #0f172a;
@@ -29,7 +33,6 @@
             background-color: var(--bg-main);
             color: var(--text-main);
             padding: 15px;
-            /* Tambahan padding atas aman untuk notch / status bar HP */
             padding-top: max(15px, env(safe-area-inset-top)); 
             display: flex;
             flex-direction: column;
@@ -89,7 +92,6 @@
             gap: 10px;
         }
 
-        /* Otomatis jadi 1 kolom ke bawah ketika dibuka di HP / layar kecil */
         @media (max-width: 480px) {
             .form-row {
                 grid-template-columns: 1fr;
@@ -122,12 +124,22 @@
             cursor: pointer;
             width: 100%;
             transition: transform 0.1s, opacity 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn:active { transform: scale(0.97); }
         .btn-danger { background-color: var(--danger); }
         .btn-success { background-color: var(--success); }
         .btn-secondary { background-color: #475569; }
+
+        .action-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 5px;
+        }
 
         /* --- MACRO PAD GRID (STREAM DECK STYLE) --- */
         .section-header {
@@ -165,7 +177,7 @@
             border: 1px solid rgba(255,255,255,0.1);
             position: relative;
             transition: all 0.08s;
-            touch-action: manipulation; /* Mencegah delay tap di mobile */
+            touch-action: manipulation;
         }
 
         .macro-btn:active {
@@ -196,7 +208,6 @@
             to { transform: rotate(1deg); }
         }
 
-        /* --- COLOR THEMES FOR MACRO BUTTONS --- */
         .theme-blue { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
         .theme-red { background: linear-gradient(135deg, #dc2626, #b91c1c); }
         .theme-green { background: linear-gradient(135deg, #059669, #047857); }
@@ -204,12 +215,12 @@
         .theme-yellow { background: linear-gradient(135deg, #d97706, #b45309); }
         .theme-dark { background: linear-gradient(135deg, #334155, #1e293b); }
 
-        /* --- MODAL TAMBAH TOMBOL --- */
-        #addModal {
+        /* --- MODAL TAMBAH & QR --- */
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             z-index: 99;
             justify-content: center;
             align-items: center;
@@ -224,6 +235,15 @@
             padding: 20px;
             border: 1px solid #475569;
         }
+
+        /* Khusus Container Scanner */
+        #qrReader {
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
     </style>
 </head>
 <body>
@@ -234,7 +254,7 @@
         <div id="statusBadge" class="status-badge disconnected">Disconnected</div>
     </div>
 
-    <!-- 2. KONEKSI & PIN (OPSIONAL) -->
+    <!-- 2. KONEKSI & PIN (DENGAN FITUR QR) -->
     <div class="card">
         <div class="form-row">
             <div class="form-group">
@@ -250,10 +270,15 @@
             <label>PIN Keamanan PC <span style="text-transform:none; color:#10b981;">(Opsional jika LAN)</span>:</label>
             <input type="password" id="pinInput" placeholder="Kosongkan jika tidak ada PIN..." maxlength="6">
         </div>
-        <button id="connectBtn" class="btn" onclick="toggleConnection()">Hubungkan ke PC</button>
+        
+        <!-- Action Row (Connect & Scan QR) -->
+        <div class="action-row">
+            <button id="connectBtn" class="btn" onclick="toggleConnection()" style="flex: 2;">Hubungkan PC</button>
+            <button id="scanBtn" class="btn btn-secondary" onclick="openQrScanner()" style="flex: 1;">Scan QR</button>
+        </div>
     </div>
 
-    <!-- 3. CUSTOM MACRO PAD (TRIGGER TOMBOL) -->
+    <!-- 3. CUSTOM MACRO PAD -->
     <div class="card" id="controlPanel" style="opacity: 0.5; pointer-events: none;">
         <div class="section-header">
             <div class="section-title">Trigger Pad (Hold-to-Repeat)</div>
@@ -262,39 +287,28 @@
                 <button class="btn btn-success" style="padding: 6px 10px; font-size: 12px; width: auto;" onclick="openAddModal()">Tambah</button>
             </div>
         </div>
-
-        <!-- Wadah Grid Tombol Custom -->
-        <div class="macro-grid" id="macroGrid">
-            <!-- Tombol akan dirender dari JS -->
-        </div>
+        <div class="macro-grid" id="macroGrid"></div>
     </div>
 
-    <!-- 4. MODAL TAMBAH TOMBOL CUSTOM -->
-    <div id="addModal" style="display: none;">
+    <!-- 4. MODAL TAMBAH TOMBOL -->
+    <div id="addModal" class="modal-overlay">
         <div class="modal-content">
             <h3 style="margin-bottom: 15px; font-size: 16px;">Buat Tombol Macro Baru</h3>
-            
             <div class="form-group">
                 <label>Nama Tombol / Label:</label>
-                <input type="text" id="mLabel" placeholder="Misal: Mute Mic, Next Slide, ULTI...">
+                <input type="text" id="mLabel" placeholder="Misal: Mute Mic, Next Slide...">
             </div>
-
             <div class="form-group">
                 <label>Tipe Trigger:</label>
                 <select id="mType">
-                    <option value="press">Single Key (Satu Tombol: space, f1, a, esc)</option>
-                    <option value="shortcut">Shortcut / Kombinasi (ctrl+c, alt+tab, win+d)</option>
+                    <option value="press">Single Key (Satu Tombol)</option>
+                    <option value="shortcut">Shortcut (Kombinasi)</option>
                 </select>
             </div>
-
             <div class="form-group">
                 <label>Tombol Keyboard / Shortcut:</label>
                 <input type="text" id="mKey" placeholder="Misal: f5, atau ctrl+shift+m">
-                <small style="color: var(--text-sub); font-size: 11px; margin-top: 2px;">
-                    *Gunakan tanda plus (+) untuk kombinasi shortcut. Contoh: <b>ctrl+alt+del</b> atau <b>win+d</b>.
-                </small>
             </div>
-
             <div class="form-group">
                 <label>Warna Tombol:</label>
                 <select id="mColor">
@@ -306,11 +320,22 @@
                     <option value="theme-dark">Gelap (Neutral/System)</option>
                 </select>
             </div>
-
             <div style="display: flex; gap: 10px; margin-top: 15px;">
                 <button class="btn btn-secondary" onclick="closeAddModal()">Batal</button>
-                <button class="btn btn-success" onclick="saveNewButton()">Simpan Tombol</button>
+                <button class="btn btn-success" onclick="saveNewButton()">Simpan</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 5. MODAL QR SCANNER -->
+    <div id="qrModal" class="modal-overlay">
+        <div class="modal-content" style="background: var(--bg-main);">
+            <h3 style="margin-bottom: 15px; font-size: 16px; text-align: center; color: white;">Arahkan Kamera ke QR Code</h3>
+            
+            <!-- Area Kamera -->
+            <div id="qrReader"></div>
+
+            <button class="btn btn-danger" onclick="closeQrScanner()">Tutup Kamera</button>
         </div>
     </div>
 
@@ -318,7 +343,10 @@
         let ws = null;
         let isConnected = false;
         let isEditMode = false;
-        let holdInterval = null; // Menyimpan status interval tombol ditahan
+        let holdInterval = null; 
+
+        // Scanner Instance
+        let html5QrcodeScanner = null;
 
         const DEFAULT_BUTTONS = [
             { label: "Play / Pause", type: "press", key: "space", color: "theme-green" },
@@ -340,6 +368,66 @@
             renderButtons();
         };
 
+        // ==========================================
+        // FITUR SCANNER QR CODE
+        // ==========================================
+        function openQrScanner() {
+            if (isConnected) {
+                alert("Putuskan koneksi terlebih dahulu sebelum scan QR!");
+                return;
+            }
+
+            document.getElementById("qrModal").style.display = "flex";
+            
+            html5QrcodeScanner = new Html5Qrcode("qrReader");
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+            
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+            .catch(err => {
+                alert("Gagal mengakses kamera. Pastikan izin kamera aktif!");
+                closeQrScanner();
+            });
+        }
+
+        function closeQrScanner() {
+            document.getElementById("qrModal").style.display = "none";
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().catch(err => console.error(err));
+            }
+        }
+
+        function onScanSuccess(decodedText) {
+            // Hentikan kamera setelah berhasil scan
+            closeQrScanner();
+
+            try {
+                // 1. Coba parse sebagai JSON: {"ip":"...", "port":"...", "pin":"..."}
+                let data = JSON.parse(decodedText);
+                if(data.ip) document.getElementById("ipInput").value = data.ip;
+                if(data.port) document.getElementById("portInput").value = data.port;
+                if(data.pin) document.getElementById("pinInput").value = data.pin;
+                
+                // Jika sukses parsing JSON, langsung coba connect
+                toggleConnection();
+
+            } catch (e) {
+                // 2. Jika bukan JSON, coba format string biasa "IP:PORT:PIN"
+                let parts = decodedText.split(":");
+                if(parts.length >= 2) {
+                    document.getElementById("ipInput").value = parts[0];
+                    document.getElementById("portInput").value = parts[1];
+                    if(parts[2]) document.getElementById("pinInput").value = parts[2];
+                    
+                    toggleConnection();
+                } else {
+                    alert("Format QR Code tidak dikenali!");
+                }
+            }
+        }
+
+        // ==========================================
+        // LOGIKA KONEKSI WEBSOCKET
+        // ==========================================
         function toggleConnection() {
             if (isConnected) {
                 ws.close();
@@ -361,6 +449,7 @@
 
             const badge = document.getElementById("statusBadge");
             const btn = document.getElementById("connectBtn");
+            const scanBtn = document.getElementById("scanBtn");
             
             badge.innerText = "● Connecting...";
             badge.className = "status-badge";
@@ -380,6 +469,7 @@
                 
                 btn.innerText = "Putuskan Koneksi";
                 btn.className = "btn btn-danger";
+                scanBtn.style.display = "none"; // Sembunyikan tombol scan saat connect
 
                 document.getElementById("controlPanel").style.opacity = "1";
                 document.getElementById("controlPanel").style.pointerEvents = "auto";
@@ -394,16 +484,18 @@
 
         function resetUI() {
             isConnected = false;
-            stopHold(); // Hentikan holding jika koneksi terputus
+            stopHold(); 
             const badge = document.getElementById("statusBadge");
             const btn = document.getElementById("connectBtn");
+            const scanBtn = document.getElementById("scanBtn");
 
             badge.innerText = "Disconnected";
             badge.className = "status-badge disconnected";
             badge.style.color = "";
             
-            btn.innerText = "Hubungkan ke PC";
+            btn.innerText = "Hubungkan PC";
             btn.className = "btn";
+            scanBtn.style.display = "flex"; // Munculkan lagi tombol scan
 
             document.getElementById("controlPanel").style.opacity = "0.5";
             document.getElementById("controlPanel").style.pointerEvents = "none";
@@ -411,9 +503,11 @@
             document.getElementById("macroGrid").classList.remove("edit-mode");
         }
 
-        // --- LOGIKA HOLD-TO-REPEAT (DITAHAN / PUSH TERUS MENERUS) ---
+        // ==========================================
+        // LOGIKA HOLD-TO-REPEAT
+        // ==========================================
         function startHold(index, event) {
-            if (event) event.preventDefault(); // Hindari efek klik ganda/zoom di mobile
+            if (event) event.preventDefault(); 
 
             if (isEditMode) {
                 if (confirm(`Hapus tombol "${macroButtons[index].label}"?`)) {
@@ -426,10 +520,8 @@
 
             if (!isConnected || !ws) return;
 
-            // Eksekusi sekali langsung saat pertama ditekan
             executeMacro(index);
 
-            // Jika tombol terus ditahan, kirim perintah berulang setiap 120ms
             if (holdInterval) clearInterval(holdInterval);
             holdInterval = setInterval(() => {
                 executeMacro(index);
@@ -459,10 +551,12 @@
             }
 
             ws.send(JSON.stringify(payload));
-            if (navigator.vibrate) navigator.vibrate(20); // Getar tipis per trigger
+            if (navigator.vibrate) navigator.vibrate(20); 
         }
 
-        // --- RENDER & MANAGEMENT TOMBOL ---
+        // ==========================================
+        // RENDER & MANAGEMENT TOMBOL
+        // ==========================================
         function loadMacroButtons() {
             const saved = localStorage.getItem("rem_macro_pad");
             if (saved) {
@@ -485,11 +579,9 @@
                 const el = document.createElement("div");
                 el.className = `macro-btn ${btn.color}`;
 
-                // Binding event Touch & Mouse untuk fitur Hold-to-Repeat
                 el.onmousedown = (e) => startHold(idx, e);
                 el.onmouseup = stopHold;
                 el.onmouseleave = stopHold;
-                
                 el.ontouchstart = (e) => startHold(idx, e);
                 el.ontouchend = stopHold;
                 el.ontouchcancel = stopHold;
