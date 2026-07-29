@@ -34,7 +34,7 @@ jobs:
 
       - name: Initialize & Sync Capacitor Android
         run: |
-          npx cap init "Remote Macro Pad" "com.remotepad.app" --web-dir "www" --yes || true
+          npx cap init "Pramaxx Remote" "com.jauhar.pramaxx.remote" --web-dir "www" --yes || true
           npx cap add android
 
       - name: Generate App Icon Automatically
