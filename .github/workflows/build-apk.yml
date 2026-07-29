@@ -32,15 +32,15 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Initialize & Sync Capacitor Android
+      - name: Add Capacitor Android Platform
         run: |
-          npx cap init "Pramaxx Remote" "com.jauhar.pramaxx.remote" --web-dir "www" --yes || true
-          npx cap add android
+          # Menggunakan konfigurasi JSON langsung tanpa membuat file .ts
+          npx cap add android --yes
 
       - name: Generate App Icon Automatically
         run: |
-          # Generate icon menggunakan @capacitor/assets dengan warna latar belakang senada dengan tema app (#0f172a)
-          npx capacitor-assets generate --iconBackgroundColor "#0f172a"
+          # Pastikan folder assets dan icon.png sudah ada di repository lo
+          npx capacitor-assets generate --iconBackgroundColor "#0f172a" || echo "Icon generation skipped, using default"
           npx cap sync android
 
       - name: Build Android APK
@@ -59,9 +59,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: "Remote Macro Pad ${{ steps.version.outputs.tag }}"
+          name: "Pramaxx Remote ${{ steps.version.outputs.tag }}"
           body: |
-            ### 🚀 Update Otomatis Remote Macro Pad
+            ### 🚀 Update Otomatis Pramaxx Remote
             - Auto-generated APK dari GitHub Actions.
             - Mendukung fitur Hold-to-Repeat & Custom Stream Deck UI.
             - Silakan download file `app-debug.apk` di bawah untuk diinstal ke HP Android.
