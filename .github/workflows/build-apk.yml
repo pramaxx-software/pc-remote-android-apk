@@ -64,6 +64,14 @@ jobs:
           npx capacitor-assets generate --iconBackgroundColor "#0f172a" || echo "Icon generation skipped, using default"
           npx cap sync android
 
+      - name: Update Android Version
+        run: |
+          RUN_NUM=${{ github.run_number }}
+          # Ubah versionCode dan versionName di android/app/build.gradle secara otomatis
+          sed -i "s/versionCode [0-9]*/versionCode $RUN_NUM/g" android/app/build.gradle
+          sed -i "s/versionName \"[^\"]*\"/versionName \"1.0.$RUN_NUM\"/g" android/app/build.gradle
+          echo "Updated Android app version to 1.0.$RUN_NUM (Code: $RUN_NUM)"
+
       - name: Build Android APK
         run: |
           cd android
