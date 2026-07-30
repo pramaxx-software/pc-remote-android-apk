@@ -68,6 +68,8 @@ window.onload = () => {
   if (localStorage.getItem("rem_port"))
     document.getElementById("portInput").value =
       localStorage.getItem("rem_port");
+  if (localStorage.getItem("rem_pin"))
+    document.getElementById("pinInput").value = localStorage.getItem("rem_pin");
 
   loadMacroButtons();
   renderButtons();
@@ -102,6 +104,7 @@ function toggleConnection() {
 
   localStorage.setItem("rem_ip", ip);
   localStorage.setItem("rem_port", port);
+  localStorage.setItem("rem_pin", pin);
 
   const badge = document.getElementById("statusBadge");
   const btn = document.getElementById("connectBtn");
