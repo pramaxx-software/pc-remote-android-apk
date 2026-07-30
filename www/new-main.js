@@ -270,22 +270,22 @@ function switchTab(tab) {
 async function enterStreamTab() {
   const streamWrapper = document.getElementById("panel-stream");
   streamWrapper.classList.add("active-stream-mode");
-  document.getElementById("floatingPropBtn").style.display = "flex";
+  // document.getElementById("floatingPropBtn").style.display = "flex";
 
   try {
-    if (document.documentElement.requestFullscreen) {
-      await document.documentElement.requestFullscreen();
-    } else if (document.documentElement.webkitRequestFullscreen) {
-      await document.documentElement.webkitRequestFullscreen();
-    }
+    // if (document.documentElement.requestFullscreen) {
+    //   await document.documentElement.requestFullscreen();
+    // } else if (document.documentElement.webkitRequestFullscreen) {
+    //   await document.documentElement.webkitRequestFullscreen();
+    // }
   } catch (e) {
     console.warn("Fullscreen dibatasi browser:", e);
   }
 
   try {
-    if (screen.orientation && screen.orientation.lock) {
-      await screen.orientation.lock("landscape");
-    }
+    // if (screen.orientation && screen.orientation.lock) {
+    //   await screen.orientation.lock("landscape");
+    // }
   } catch (e) {
     console.warn("Screen orientation lock tidak didukung / ditolak:", e);
   }
@@ -299,8 +299,8 @@ async function enterStreamTab() {
 function exitStreamTab() {
   const streamWrapper = document.getElementById("panel-stream");
   streamWrapper.classList.remove("active-stream-mode");
-  document.getElementById("floatingPropBtn").style.display = "none";
-  document.getElementById("propertiesPanel").style.display = "none";
+  // document.getElementById("floatingPropBtn").style.display = "none";
+  // document.getElementById("propertiesPanel").style.display = "none";
 
   if (isStreaming) {
     isStreaming = false;
@@ -337,10 +337,10 @@ function togglePropertiesPanel() {
     btn.style.display = "block";
   }
 }
-
 // ==========================================
-// TRACKPAD / TOUCH PAD DALAM STREAM VIEW
+// TRACKPAD & 2-FINGER SCROLL LOGIC
 // ==========================================
+let scrollInterval = null;
 
 function setupStreamTouchpad() {
   const pad = document.getElementById("floatingTrackpad");
@@ -349,26 +349,60 @@ function setupStreamTouchpad() {
   pad.addEventListener(
     "touchstart",
     (e) => {
-      const t = e.touches[0];
-      dragLastX = t.clientX;
-      dragLastY = t.clientY;
+      stopScrollHold();
+      const t1 = e.touches[0];
+      dragLastX = t1.clientX;
+      dragLastY = t1.clientY;
       dragMoved = 0;
+
+      // Jika pakai 2 jari, catat posisi awal untuk scroll
+      if (e.touches.length === 2) {
+        const t2 = e.touches[1];
+        dragLastX2 = t2.clientX;
+        dragLastY2 = t2.clientY;
+      }
     },
     { passive: true },
   );
+
+  let dragLastX2 = null;
+  let dragLastY2 = null;
 
   pad.addEventListener(
     "touchmove",
     (e) => {
       if (dragLastX === null) return;
-      const t = e.touches[0];
 
+      // --- SCROLL 2 JARI ---
+      if (e.touches.length === 2) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+
+        const dy1 = t1.clientY - (dragLastY2 ?? t1.clientY);
+        const dy2 = t2.clientY - (dragLastY2 ?? t2.clientY);
+        const avgDy = (dy1 + dy2) / 2;
+
+        dragLastY = t1.clientY;
+        dragLastY2 = t2.clientY;
+
+        if (Math.abs(avgDy) > 1) {
+          // Kirim perintah scroll berdasarkan pergerakan vertikal 2 jari
+          sendToServer({
+            type: "mouse_scroll",
+            dx: 0,
+            dy: Math.round(-avgDy * 0.8),
+          });
+        }
+        return;
+      }
+
+      // --- KONTROL MOUSE 1 JARI ---
+      const t = e.touches[0];
       const dx = t.clientX - dragLastX;
       const dy = t.clientY - dragLastY;
 
       dragLastX = t.clientX;
       dragLastY = t.clientY;
-
       dragMoved += Math.abs(dx) + Math.abs(dy);
 
       if (dx || dy) {
@@ -382,15 +416,32 @@ function setupStreamTouchpad() {
     { passive: true },
   );
 
-  pad.addEventListener("touchend", () => {
-    // Jika tap singkat di trackpad, anggap sebagai klik kiri
-    if (dragMoved < 4) {
-      sendMouseClick("left");
+  pad.addEventListener("touchend", (e) => {
+    if (e.touches.length === 0) {
+      if (dragMoved < 4) {
+        sendMouseClick("left");
+      }
+      dragLastX = null;
+      dragLastY = null;
+      dragMoved = 0;
     }
-    dragLastX = null;
-    dragLastY = null;
-    dragMoved = 0;
   });
+}
+
+// Fitur Tahan Tombol Scroll (Hold-to-Scroll)
+function startScrollHold(direction) {
+  sendMouseScroll(direction);
+  if (scrollInterval) clearInterval(scrollInterval);
+  scrollInterval = setInterval(() => {
+    sendMouseScroll(direction);
+  }, 100);
+}
+
+function stopScrollHold() {
+  if (scrollInterval) {
+    clearInterval(scrollInterval);
+    scrollInterval = null;
+  }
 }
 
 function sendMouseClick(button, double) {
@@ -399,7 +450,7 @@ function sendMouseClick(button, double) {
 }
 
 function sendMouseScroll(direction) {
-  sendToServer({ type: "mouse_scroll", dx: 0, dy: direction * 40 }); // Diperhalus scroll-nya
+  sendToServer({ type: "mouse_scroll", dx: 0, dy: direction * 25 });
 }
 
 function onSensitivityChange(value) {

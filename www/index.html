@@ -114,23 +114,18 @@
       <div class="macro-grid" id="macroGrid"></div>
     </div>
 
-    <!-- 3B. STREAM TAB (OTOMATIS FULLSCREEN, LANDSCAPE & FLOATING PROPERTIES) -->
+    <!-- 3B. STREAM TAB (SPLIT LAYOUT: KIRI STREAM, KANAN KONTROL & TRACKPAD) -->
     <div class="stream-wrapper" id="panel-stream">
-      <div class="screen-container" id="streamTouchArea">
-        <img id="screenImage" alt="Live screen" />
-        <span id="screenPlaceholder">Menghubungkan & Memuat Stream...</span>
-        <!-- Kursor Client -->
-        <div id="clientCursor"></div>
+      <!-- Kolom Kiri: Layar Stream -->
+      <div class="stream-left-pane">
+        <div class="screen-container" id="streamTouchArea">
+          <img id="screenImage" alt="Live screen" />
+          <span id="screenPlaceholder">Menghubungkan & Memuat Stream...</span>
+        </div>
       </div>
 
-      <!-- Floating Button untuk Toggle Properties Control (Mouse & Keyboard) -->
-      <button id="floatingPropBtn" onclick="togglePropertiesPanel()">⚙️</button>
-
-      <!-- Panel Properties (Kontrol Mouse & Keyboard Tersembunyi di Floating Menu) -->
-      <div
-        id="propertiesPanel"
-        style="max-height: 200px; overflow-y: auto; padding-right: 1.2rem"
-      >
+      <!-- Kolom Kanan: Panel Kontrol, Trackpad & Settings -->
+      <div class="stream-right-pane">
         <div
           style="
             display: flex;
@@ -139,32 +134,26 @@
           "
         >
           <span class="prop-section-title" style="margin: 0"
-            >Stream & Mouse Control</span
+            >Remote Control</span
           >
           <button
-            onclick="togglePropertiesPanel()"
-            style="
-              background: none;
-              border: none;
-              color: white;
-              font-size: 16px;
-              cursor: pointer;
-            "
+            class="btn btn-danger"
+            style="padding: 4px 8px; font-size: 10px; width: auto"
+            onclick="exitStreamTab()"
           >
-            ✕
+            Keluar
           </button>
         </div>
 
-        <!-- AREA TRACKPAD DI DALAM FLOATING PANEL -->
         <div>
           <div class="prop-section-title">
-            Trackpad (Geser untuk Gerusin Kursor)
+            Trackpad (1 Jari: Geser | 2 Jari: Scroll)
           </div>
           <div
             id="floatingTrackpad"
             style="
               width: 100%;
-              height: 110px;
+              height: 130px;
               background-color: var(--bg-input);
               border: 1px dashed #475569;
               border-radius: 10px;
@@ -172,11 +161,13 @@
               align-items: center;
               justify-content: center;
               color: var(--text-sub);
-              font-size: 12px;
+              font-size: 11px;
+              text-align: center;
+              padding: 5px;
               touch-action: none;
             "
           >
-            Usap di sini untuk gerakin mouse
+            Usap trackpad di sini
           </div>
         </div>
 
@@ -185,16 +176,25 @@
           <div class="mouse-btn-row">
             <button
               class="btn"
-              style="background: var(--bg-input)"
+              style="
+                background: var(--bg-input);
+                padding: 8px 4px;
+                font-size: 11px;
+              "
               onclick="sendMouseClick('left')"
             >
-              Klik Kiri
-            </button>
-            <button class="btn btn-secondary" onclick="sendMouseClick('right')">
-              Klik Kanan
+              Kiri
             </button>
             <button
               class="btn btn-secondary"
+              style="padding: 8px 4px; font-size: 11px"
+              onclick="sendMouseClick('right')"
+            >
+              Kanan
+            </button>
+            <button
+              class="btn btn-secondary"
+              style="padding: 8px 4px; font-size: 11px"
               onclick="sendMouseClick('left', true)"
             >
               Double
@@ -203,12 +203,30 @@
         </div>
 
         <div>
-          <div class="prop-section-title">Scroll</div>
+          <div class="prop-section-title">Scroll (Tekan & Tahan)</div>
           <div class="scroll-btn-row">
-            <button class="btn btn-secondary" onclick="sendMouseScroll(1)">
+            <button
+              class="btn btn-secondary"
+              style="padding: 8px 4px; font-size: 11px"
+              onmousedown="startScrollHold(1)"
+              onmouseup="stopScrollHold()"
+              onmouseleave="stopScrollHold()"
+              ontouchstart="startScrollHold(1)"
+              ontouchend="stopScrollHold()"
+              ontouchcancel="stopScrollHold()"
+            >
               ▲ Atas
             </button>
-            <button class="btn btn-secondary" onclick="sendMouseScroll(-1)">
+            <button
+              class="btn btn-secondary"
+              style="padding: 8px 4px; font-size: 11px"
+              onmousedown="startScrollHold(-1)"
+              onmouseup="stopScrollHold()"
+              onmouseleave="stopScrollHold()"
+              ontouchstart="startScrollHold(-1)"
+              ontouchend="stopScrollHold()"
+              ontouchcancel="stopScrollHold()"
+            >
               ▼ Bawah
             </button>
           </div>
@@ -227,16 +245,6 @@
             value="1.5"
             oninput="onSensitivityChange(this.value)"
           />
-        </div>
-
-        <div>
-          <button
-            class="btn btn-danger"
-            style="padding: 8px; font-size: 12px"
-            onclick="exitStreamTab()"
-          >
-            Keluar Stream Mode
-          </button>
         </div>
       </div>
     </div>

@@ -203,16 +203,14 @@ select:focus {
   color: white;
 }
 
-/* --- SCREEN VIEW & IMMERSIVE STREAM --- */
+/* --- SCREEN VIEW & SPLIT STREAM MODE --- */
 .stream-wrapper {
   position: relative;
   width: 100%;
   height: 100vh;
   background-color: #000;
   display: none;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  flex-direction: row; /* Bersebelahan kiri-kanan */
   overflow: hidden;
 }
 
@@ -229,6 +227,18 @@ select:focus {
   border-radius: 0;
 }
 
+/* Kolom Kiri: Screen Stream */
+.stream-left-pane {
+  flex: 1.3;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background-color: #000;
+  overflow: hidden;
+}
+
 .screen-container {
   width: 100%;
   height: 100%;
@@ -237,7 +247,6 @@ select:focus {
   justify-content: center;
   position: relative;
   overflow: hidden;
-  touch-action: none;
 }
 
 .screen-container img {
@@ -251,6 +260,33 @@ select:focus {
   display: block;
 }
 
+#screenPlaceholder {
+  color: #475569;
+  font-size: 13px;
+  text-align: center;
+  padding: 10px;
+}
+
+/* Kolom Kanan: Panel Kontrol & Trackpad */
+.stream-right-pane {
+  flex: 1;
+  height: 100%;
+  background-color: rgba(30, 41, 59, 0.98);
+  backdrop-filter: blur(10px);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow-y: auto;
+  z-index: 10004;
+}
+
+/* Sembunyikan elemen floating lama karena sudah diganti panel permanen */
+#floatingPropBtn,
+#propertiesPanel {
+  display: none !important;
+}
 #screenPlaceholder {
   color: #475569;
   font-size: 14px;
