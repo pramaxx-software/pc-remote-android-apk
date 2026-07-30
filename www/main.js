@@ -1,3 +1,26 @@
+import { CapacitorUpdater } from "@capgo/capacitor-updater";
+
+// Fungsi wajib untuk mengonfirmasi bahwa update stabil dan tidak crash
+async function confirmAppReady() {
+  try {
+    console.log("[CapgoUpdater] Mengonfirmasi status aplikasi ke plugin...");
+    await CapacitorUpdater.notifyAppReady();
+    console.log(
+      "[CapgoUpdater] notifyAppReady sukses dipanggil. Update permanen!",
+    );
+  } catch (error) {
+    console.error("[CapgoUpdater] Gagal memanggil notifyAppReady:", error);
+  }
+}
+
+// Jalankan fungsi saat DOM atau aplikasi siap dimuat
+document.addEventListener("DOMContentLoaded", () => {
+  confirmAppReady();
+
+  // --- LANJUTKAN KODE UTAMA APLIKASI DI SINI ---
+  console.log("App loaded successfully.");
+});
+
 // ==============================================
 // function TOAST SWEETALERT
 // ==============================================
