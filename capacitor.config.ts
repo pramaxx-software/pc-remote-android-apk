@@ -21,7 +21,6 @@ const config: CapacitorConfig = {
       updateUrl: 'https://pc-remote.pramaxx.biz.id/api/android/check-update',
       autoUpdate: 'always',
       appId: 'com.jauhar.pramax.remote',
-      autoSplashscreen: true
     },
     SplashScreen: {
       launchAutoHide: false
