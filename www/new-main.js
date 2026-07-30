@@ -273,7 +273,15 @@ function exitStreamTab() {
 
 function togglePropertiesPanel() {
   const panel = document.getElementById("propertiesPanel");
+  const btn = document.getElementById("floatingPropBtn");
   panel.style.display = panel.style.display === "flex" ? "none" : "flex";
+  if (panel.style.display === "flex") {
+    btn.style.display = "none";
+    panel.style.position = "fixed";
+    panel.style.bottom = 0;
+  } else {
+    btn.style.display = "block";
+  }
 }
 
 // ==========================================
