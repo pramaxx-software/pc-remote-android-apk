@@ -13,6 +13,12 @@ const config: CapacitorConfig = {
       style: "dark",
       backgroundColor: "#0f172a"
     },
+    CapacitorUpdater: {
+      // Atur agar otomatis ngecek update setiap aplikasi dibuka
+      updateUrl: 'https://pc-remote.pramaxx.biz.id/api/android/check-update',
+      autoUpdate: true,
+      resetUrl: 'https://pc-remote.pramaxx.biz.id/api/android/update-failed', // Opsional untuk rollback jika error
+    }
   }
 };
 

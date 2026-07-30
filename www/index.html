@@ -1,637 +1,820 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Pramaxx Remote Keyboard</title>
-    
     <!-- TAMBAHAN: Library Scanner QR Code -->
     <script src="htmlqrcode.min.js"></script>
-
     <style>
-        :root {
-            --bg-main: #0f172a;
-            --bg-card: #1e293b;
-            --bg-input: #334155;
-            --accent: #3b82f6;
-            --success: #10b981;
-            --danger: #ef4444;
-            --text-main: #f8fafc;
-            --text-sub: #94a3b8;
-        }
+      :root {
+        --bg-main: #0f172a;
+        --bg-card: #1e293b;
+        --bg-input: #334155;
+        --accent: #3b82f6;
+        --success: #10b981;
+        --danger: #ef4444;
+        --text-main: #f8fafc;
+        --text-sub: #94a3b8;
+      }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
+      ::-webkit-inner-spin-button {
+        display: none;
+      }
 
-       body {
-            background-color: var(--bg-main);
-            color: var(--text-main);
-            padding: 15px;
-            padding-top: max(15px, env(safe-area-inset-top)); 
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            max-width: 500px;
-            margin: 0 auto;
-            min-height: 100vh;
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
 
-        /* --- CARD & CONTAINERS --- */
-        .card {
-            background-color: var(--bg-card);
-            border-radius: 16px;
-            padding: 15px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
+      body {
+        background-color: var(--bg-main);
+        color: var(--text-main);
+        padding: 15px;
+        padding-top: max(15px, env(safe-area-inset-top));
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        max-width: 500px;
+        margin: 0 auto;
+        min-height: 100vh;
+      }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+      /* --- CARD & CONTAINERS --- */
+      .card {
+        background-color: var(--bg-card);
+        border-radius: 16px;
+        padding: 15px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
 
-        .title {
-            font-size: 18px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #ffa806;
-        }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
 
-        .status-badge {
-            font-size: 11px;
-            font-weight: 600;
-            padding: 5px 12px;
-            border-radius: 20px;
-            background-color: var(--bg-input);
-            color: var(--text-sub);
-        }
+      .title {
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #ffa806;
+      }
 
-        .status-badge.connected { background-color: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
-        .status-badge.disconnected { background-color: rgba(239, 68, 68, 0.2); color: var(--danger); }
+      .status-badge {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 12px;
+        border-radius: 20px;
+        background-color: var(--bg-input);
+        color: var(--text-sub);
+      }
 
-        /* --- FORM INPUTS & RESPONSIVE GRID --- */
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            margin-bottom: 10px;
-        }
+      .status-badge.connected {
+        background-color: rgba(16, 185, 129, 0.2);
+        color: var(--success);
+        border: 1px solid var(--success);
+      }
+      .status-badge.disconnected {
+        background-color: rgba(239, 68, 68, 0.2);
+        color: var(--danger);
+      }
 
+      /* --- FORM INPUTS & RESPONSIVE GRID --- */
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-bottom: 10px;
+      }
+
+      .form-row {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 10px;
+      }
+
+      @media (max-width: 480px) {
         .form-row {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 10px;
+          grid-template-columns: 1fr;
         }
+      }
 
-        @media (max-width: 480px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
+      label {
+        font-size: 11px;
+        color: var(--text-sub);
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      input,
+      select {
+        background-color: var(--bg-input);
+        border: 1px solid #475569;
+        border-radius: 10px;
+        padding: 10px 12px;
+        color: white;
+        font-size: 14px;
+        outline: none;
+        user-select: text;
+      }
+
+      input:focus,
+      select:focus {
+        border-color: var(--accent);
+      }
+
+      .btn {
+        background-color: var(--accent);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        transition: transform 0.1s, opacity 0.2s;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn:active {
+        transform: scale(0.97);
+      }
+      .btn-danger {
+        background-color: var(--danger);
+      }
+      .btn-success {
+        background-color: var(--success);
+      }
+      .btn-secondary {
+        background-color: #475569;
+      }
+
+      .action-row {
+        display: flex;
+        gap: 10px;
+        margin-top: 5px;
+      }
+
+      /* --- MACRO PAD GRID (STREAM DECK STYLE) --- */
+      .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .section-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-sub);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .macro-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .macro-btn {
+        aspect-ratio: 1 / 0.85;
+        border-radius: 14px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        position: relative;
+        transition: all 0.08s;
+        touch-action: manipulation;
+      }
+
+      .macro-btn:active {
+        transform: translateY(4px);
+        box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+      }
+
+      .macro-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 4px;
+        pointer-events: none;
+      }
+      .macro-sub {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.7);
+        font-family: monospace;
+        pointer-events: none;
+      }
+
+      .edit-badge {
+        position: absolute;
+        top: 4px;
+        right: 6px;
+        font-size: 10px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #93c5fd;
+        padding: 2px 6px;
+        border-radius: 10px;
+        display: none;
+      }
+
+      .edit-mode .edit-badge {
+        display: block;
+      }
+      .edit-mode .macro-btn {
+        animation: shake 0.3s infinite alternate;
+        border-color: var(--accent);
+      }
+
+      @keyframes shake {
+        from {
+          transform: rotate(-1deg);
         }
-
-        label { font-size: 11px; color: var(--text-sub); font-weight: 600; text-transform: uppercase; }
-
-        input, select {
-            background-color: var(--bg-input);
-            border: 1px solid #475569;
-            border-radius: 10px;
-            padding: 10px 12px;
-            color: white;
-            font-size: 14px;
-            outline: none;
-            user-select: text;
+        to {
+          transform: rotate(1deg);
         }
+      }
 
-        input:focus, select:focus { border-color: var(--accent); }
+      .theme-blue {
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      }
+      .theme-red {
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+      }
+      .theme-green {
+        background: linear-gradient(135deg, #059669, #047857);
+      }
+      .theme-purple {
+        background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      }
+      .theme-yellow {
+        background: linear-gradient(135deg, #d97706, #b45309);
+      }
+      .theme-dark {
+        background: linear-gradient(135deg, #334155, #1e293b);
+      }
 
-        .btn {
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            padding: 12px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            width: 100%;
-            transition: transform 0.1s, opacity 0.2s;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-        }
+      /* --- MODAL TAMBAH/EDIT & QR --- */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 99;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
 
-        .btn:active { transform: scale(0.97); }
-        .btn-danger { background-color: var(--danger); }
-        .btn-success { background-color: var(--success); }
-        .btn-secondary { background-color: #475569; }
+      .modal-content {
+        background: var(--bg-card);
+        width: 100%;
+        max-width: 400px;
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid #475569;
+      }
 
-        .action-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 5px;
-        }
-
-        /* --- MACRO PAD GRID (STREAM DECK STYLE) --- */
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .section-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: var(--text-sub);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .macro-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-        }
-
-        .macro-btn {
-            aspect-ratio: 1 / 0.85;
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-            text-align: center;
-            cursor: pointer;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.4);
-            border: 1px solid rgba(255,255,255,0.1);
-            position: relative;
-            transition: all 0.08s;
-            touch-action: manipulation;
-        }
-
-        .macro-btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 rgba(0,0,0,0);
-        }
-
-        .macro-label { font-size: 13px; font-weight: 700; color: white; margin-bottom: 4px; pointer-events: none; }
-        .macro-sub { font-size: 10px; color: rgba(255,255,255,0.7); font-family: monospace; pointer-events: none; }
-
-        .del-badge {
-            position: absolute;
-            top: 4px;
-            right: 6px;
-            font-size: 10px;
-            background: rgba(0,0,0,0.5);
-            color: #fca5a5;
-            padding: 2px 6px;
-            border-radius: 10px;
-            display: none;
-        }
-
-        .edit-mode .del-badge { display: block; }
-        .edit-mode .macro-btn { animation: shake 0.3s infinite alternate; }
-
-        @keyframes shake {
-            from { transform: rotate(-1deg); }
-            to { transform: rotate(1deg); }
-        }
-
-        .theme-blue { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
-        .theme-red { background: linear-gradient(135deg, #dc2626, #b91c1c); }
-        .theme-green { background: linear-gradient(135deg, #059669, #047857); }
-        .theme-purple { background: linear-gradient(135deg, #7c3aed, #6d28d9); }
-        .theme-yellow { background: linear-gradient(135deg, #d97706, #b45309); }
-        .theme-dark { background: linear-gradient(135deg, #334155, #1e293b); }
-
-        /* --- MODAL TAMBAH & QR --- */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85);
-            z-index: 99;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-
-        .modal-content {
-            background: var(--bg-card);
-            width: 100%;
-            max-width: 400px;
-            border-radius: 16px;
-            padding: 20px;
-            border: 1px solid #475569;
-        }
-
-        /* Khusus Container Scanner */
-        #qrReader {
-            width: 100%;
-            background: white;
-            border-radius: 10px;
-            overflow: hidden;
-            margin-bottom: 15px;
-        }
+      /* Khusus Container Scanner */
+      #qrReader {
+        width: 100%;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 15px;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <!-- 1. HEADER & STATUS -->
     <div class="card header">
-        <div class="title">Pramaxx Remote Keyboard</div>
-        <div id="statusBadge" class="status-badge disconnected">Disconnected</div>
+      <div class="title">Pramaxx Remote Keyboard</div>
+      <div id="statusBadge" class="status-badge disconnected">Disconnected</div>
     </div>
 
-    <!-- 2. KONEKSI & PIN (DENGAN FITUR QR) -->
-    <div class="card">
-        <div class="form-row">
-            <div class="form-group">
-                <label>IP LAN / Domain:</label>
-                <input type="text" id="ipInput" placeholder="192.168.1.15 / web.domain.com">
-            </div>
-            <div class="form-group">
-                <label>Port:</label>
-                <input type="number" id="portInput" placeholder="8765" value="8765">
-            </div>
+    <!-- 2. KONEKSI & PIN (DENGAN FITUR QR) - AKAN DISSEMBUNYIKAN SAAT TERHUBUNG -->
+    <div class="card" id="connectionCard">
+      <div class="form-row">
+        <div class="form-group">
+          <label>IP LAN / Domain:</label>
+          <input
+            type="text"
+            id="ipInput"
+            placeholder="192.168.1.15 / web.domain.com"
+          />
         </div>
         <div class="form-group">
-            <label>PIN Keamanan PC <span style="text-transform:none; color:#10b981;">(Opsional jika LAN)</span>:</label>
-            <input type="password" id="pinInput" placeholder="Kosongkan jika tidak ada PIN..." maxlength="6">
+          <label>Port:</label>
+          <input type="number" id="portInput" placeholder="8765" value="8765" />
         </div>
-        
-        <!-- Action Row (Connect & Scan QR) -->
-        <div class="action-row">
-            <button id="connectBtn" class="btn" onclick="toggleConnection()" style="flex: 2;">Hubungkan PC</button>
-            <button id="scanBtn" class="btn btn-secondary" onclick="openQrScanner()" style="flex: 1;">Scan QR</button>
-        </div>
+      </div>
+      <div class="form-group">
+        <label
+          >PIN Keamanan PC
+          <span style="text-transform: none; color: #10b981"
+            >(Opsional jika LAN)</span
+          >:</label
+        >
+        <input
+          type="password"
+          id="pinInput"
+          placeholder="Kosongkan jika tidak ada PIN..."
+          maxlength="6"
+        />
+      </div>
+
+      <!-- Action Row (Connect & Scan QR) -->
+      <div class="action-row">
+        <button
+          id="connectBtn"
+          class="btn"
+          onclick="toggleConnection()"
+          style="flex: 2"
+        >
+          Hubungkan PC
+        </button>
+        <button
+          id="scanBtn"
+          class="btn btn-secondary"
+          onclick="openQrScanner()"
+          style="flex: 1"
+        >
+          Scan QR
+        </button>
+      </div>
     </div>
 
     <!-- 3. CUSTOM MACRO PAD -->
-    <div class="card" id="controlPanel" style="opacity: 0.5; pointer-events: none;">
-        <div class="section-header">
-            <div class="section-title">Trigger Pad (Hold-to-Repeat)</div>
-            <div style="display: flex; gap: 6px;">
-                <button class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px; width: auto;" onclick="toggleEditMode()">Hapus</button>
-                <button class="btn btn-success" style="padding: 6px 10px; font-size: 12px; width: auto;" onclick="openAddModal()">Tambah</button>
-            </div>
+    <div class="card" id="controlPanel">
+      <div class="section-header">
+        <div class="section-title">Trigger Pad (Hold-to-Repeat)</div>
+        <div style="display: flex; gap: 6px">
+          <button
+            id="editModeBtn"
+            class="btn btn-secondary"
+            style="padding: 6px 10px; font-size: 12px; width: auto"
+            onclick="toggleEditMode()"
+          >
+            Edit
+          </button>
+          <button
+            class="btn btn-success"
+            style="padding: 6px 10px; font-size: 12px; width: auto"
+            onclick="openAddModal()"
+          >
+            Tambah
+          </button>
         </div>
-        <div class="macro-grid" id="macroGrid"></div>
+      </div>
+      <div class="macro-grid" id="macroGrid"></div>
     </div>
 
-    <!-- 4. MODAL TAMBAH TOMBOL -->
-    <div id="addModal" class="modal-overlay">
-        <div class="modal-content">
-            <h3 style="margin-bottom: 15px; font-size: 16px;">Buat Tombol Macro Baru</h3>
-            <div class="form-group">
-                <label>Nama Tombol / Label:</label>
-                <input type="text" id="mLabel" placeholder="Misal: Mute Mic, Next Slide...">
-            </div>
-            <div class="form-group">
-                <label>Tipe Trigger:</label>
-                <select id="mType">
-                    <option value="press">Single Key (Satu Tombol)</option>
-                    <option value="shortcut">Shortcut (Kombinasi)</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Tombol Keyboard / Shortcut:</label>
-                <input type="text" id="mKey" placeholder="Misal: f5, atau ctrl+shift+m">
-            </div>
-            <div class="form-group">
-                <label>Warna Tombol:</label>
-                <select id="mColor">
-                    <option value="theme-blue">Biru (Default)</option>
-                    <option value="theme-red">Merah (Action/Danger)</option>
-                    <option value="theme-green">Hijau (Media/Play)</option>
-                    <option value="theme-purple">Ungu (Special/Macro)</option>
-                    <option value="theme-yellow">Kuning (Warning)</option>
-                    <option value="theme-dark">Gelap (Neutral/System)</option>
-                </select>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-secondary" onclick="closeAddModal()">Batal</button>
-                <button class="btn btn-success" onclick="saveNewButton()">Simpan</button>
-            </div>
+    <!-- 4. MODAL TAMBAH / EDIT TOMBOL -->
+    <div id="macroModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3 id="modalTitle" style="margin-bottom: 15px; font-size: 16px">
+          Buat Tombol Macro Baru
+        </h3>
+        <input type="hidden" id="editIndex" value="-1" />
+        <div class="form-group">
+          <label>Nama Tombol / Label:</label>
+          <input
+            type="text"
+            id="mLabel"
+            placeholder="Misal: Mute Mic, Next Slide..."
+          />
         </div>
+        <div class="form-group">
+          <label>Tipe Trigger:</label>
+          <select id="mType">
+            <option value="press">Single Key (Satu Tombol)</option>
+            <option value="shortcut">Shortcut (Kombinasi)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Tombol Keyboard / Shortcut:</label>
+          <input
+            type="text"
+            id="mKey"
+            placeholder="Misal: f5, atau ctrl+shift+m"
+          />
+        </div>
+        <div class="form-group">
+          <label>Warna Tombol:</label>
+          <select id="mColor">
+            <option value="theme-blue">Biru (Default)</option>
+            <option value="theme-red">Merah (Action/Danger)</option>
+            <option value="theme-green">Hijau (Media/Play)</option>
+            <option value="theme-purple">Ungu (Special/Macro)</option>
+            <option value="theme-yellow">Kuning (Warning)</option>
+            <option value="theme-dark">Gelap (Neutral/System)</option>
+          </select>
+        </div>
+        <div
+          style="display: flex; gap: 10px; margin-top: 15px"
+          id="modalActionButtons"
+        >
+          <button class="btn btn-secondary" onclick="closeMacroModal()">
+            Batal
+          </button>
+          <button class="btn btn-success" onclick="saveMacroButton()">
+            Simpan
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- 5. MODAL QR SCANNER -->
     <div id="qrModal" class="modal-overlay">
-        <div class="modal-content" style="background: var(--bg-main);">
-            <h3 style="margin-bottom: 15px; font-size: 16px; text-align: center; color: white;">Arahkan Kamera ke QR Code</h3>
-            
-            <!-- Area Kamera -->
-            <div id="qrReader"></div>
+      <div class="modal-content" style="background: var(--bg-main)">
+        <h3
+          style="
+            margin-bottom: 15px;
+            font-size: 16px;
+            text-align: center;
+            color: white;
+          "
+        >
+          Arahkan Kamera ke QR Code
+        </h3>
 
-            <button class="btn btn-danger" onclick="closeQrScanner()">Tutup Kamera</button>
-        </div>
+        <!-- Area Kamera -->
+        <div id="qrReader"></div>
+
+        <button class="btn btn-danger" onclick="closeQrScanner()">
+          Tutup Kamera
+        </button>
+      </div>
     </div>
 
     <script>
-        let ws = null;
-        let isConnected = false;
-        let isEditMode = false;
-        let holdInterval = null; 
+      let ws = null;
+      let isConnected = false;
+      let isEditMode = false;
+      let holdInterval = null;
 
-        // Scanner Instance
-        let html5QrcodeScanner = null;
+      // Scanner Instance
+      let html5QrcodeScanner = null;
 
-        const DEFAULT_BUTTONS = [
-            { label: "Play / Pause", type: "press", key: "space", color: "theme-green" },
-            { label: "Next Slide", type: "press", key: "right", color: "theme-blue" },
-            { label: "Prev Slide", type: "press", key: "left", color: "theme-blue" },
-            { label: "Copy", type: "shortcut", key: "ctrl+c", color: "theme-yellow" },
-            { label: "Paste", type: "shortcut", key: "ctrl+v", color: "theme-yellow" },
-            { label: "Mute Audio", type: "press", key: "f1", color: "theme-red" },
-        ];
+      const DEFAULT_BUTTONS = [];
 
-        let macroButtons = [];
+      let macroButtons = [];
 
-        window.onload = () => {
-            if (localStorage.getItem("rem_ip")) document.getElementById("ipInput").value = localStorage.getItem("rem_ip");
-            if (localStorage.getItem("rem_port")) document.getElementById("portInput").value = localStorage.getItem("rem_port");
-            if (localStorage.getItem("rem_pin")) document.getElementById("pinInput").value = localStorage.getItem("rem_pin");
-            
-            loadMacroButtons();
-            renderButtons();
+      window.onload = () => {
+        if (localStorage.getItem("rem_ip"))
+          document.getElementById("ipInput").value =
+            localStorage.getItem("rem_ip");
+        if (localStorage.getItem("rem_port"))
+          document.getElementById("portInput").value =
+            localStorage.getItem("rem_port");
+        if (localStorage.getItem("rem_pin"))
+          document.getElementById("pinInput").value =
+            localStorage.getItem("rem_pin");
+
+        loadMacroButtons();
+        renderButtons();
+      };
+
+      // ==========================================
+      // FITUR SCANNER QR CODE
+      // ==========================================
+      function openQrScanner() {
+        if (isConnected) {
+          alert("Putuskan koneksi terlebih dahulu sebelum scan QR!");
+          return;
+        }
+
+        document.getElementById("qrModal").style.display = "flex";
+
+        html5QrcodeScanner = new Html5Qrcode("qrReader");
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        html5QrcodeScanner
+          .start({ facingMode: "environment" }, config, onScanSuccess)
+          .catch((err) => {
+            alert("Gagal mengakses kamera. Pastikan izin kamera aktif!");
+            closeQrScanner();
+          });
+      }
+
+      function closeQrScanner() {
+        document.getElementById("qrModal").style.display = "none";
+        if (html5QrcodeScanner) {
+          html5QrcodeScanner.stop().catch((err) => console.error(err));
+        }
+      }
+
+      function onScanSuccess(decodedText) {
+        closeQrScanner();
+
+        try {
+          let data = JSON.parse(decodedText);
+          if (data.ip) document.getElementById("ipInput").value = data.ip;
+          if (data.port) document.getElementById("portInput").value = data.port;
+          if (data.pin) document.getElementById("pinInput").value = data.pin;
+
+          toggleConnection();
+        } catch (e) {
+          let parts = decodedText.split(":");
+          if (parts.length >= 2) {
+            document.getElementById("ipInput").value = parts[0];
+            document.getElementById("portInput").value = parts[1];
+            if (parts[2]) document.getElementById("pinInput").value = parts[2];
+
+            toggleConnection();
+          } else {
+            alert("Format QR Code tidak dikenali!");
+          }
+        }
+      }
+
+      // ==========================================
+      // LOGIKA KONEKSI WEBSOCKET
+      // ==========================================
+      function toggleConnection() {
+        if (isConnected) {
+          ws.close();
+          return;
+        }
+
+        const ip = document.getElementById("ipInput").value.trim();
+        const port = document.getElementById("portInput").value.trim();
+        const pin = document.getElementById("pinInput").value.trim();
+
+        if (!ip) {
+          alert("Masukkan IP LAN atau Domain Cloudflare dulu, bre!");
+          return;
+        }
+
+        localStorage.setItem("rem_ip", ip);
+        localStorage.setItem("rem_port", port);
+        localStorage.setItem("rem_pin", pin);
+
+        const badge = document.getElementById("statusBadge");
+        const btn = document.getElementById("connectBtn");
+        const scanBtn = document.getElementById("scanBtn");
+
+        badge.innerText = "● Connecting...";
+        badge.className = "status-badge";
+        badge.style.color = "#f59e0b";
+
+        let wsUrl = ip.match(/[a-zA-Z]/)
+          ? `wss://${ip.replace(/^(https?|wss?):\/\//, "")}`
+          : `ws://${ip}:${port}`;
+
+        ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          isConnected = true;
+          badge.innerText = "Connected";
+          badge.className = "status-badge connected";
+          badge.style.color = "";
+
+          btn.innerText = "Putuskan Koneksi";
+          btn.className = "btn btn-danger";
+          scanBtn.style.display = "none";
+
+          // Sembunyikan section pengaturan saat berhasil terhubung
+          document.getElementById("connectionCard").style.display = "none";
         };
 
-        // ==========================================
-        // FITUR SCANNER QR CODE
-        // ==========================================
-        function openQrScanner() {
-            if (isConnected) {
-                alert("Putuskan koneksi terlebih dahulu sebelum scan QR!");
-                return;
-            }
+        ws.onclose = resetUI;
+        ws.onerror = (e) => {
+          alert(
+            "Gagal terhubung ke PC! Pastikan IP/Domain benar dan program desktop sudah berjalan.",
+          );
+          resetUI();
+        };
+      }
 
-            document.getElementById("qrModal").style.display = "flex";
-            
-            html5QrcodeScanner = new Html5Qrcode("qrReader");
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-            
-            html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
-            .catch(err => {
-                alert("Gagal mengakses kamera. Pastikan izin kamera aktif!");
-                closeQrScanner();
-            });
+      function resetUI() {
+        isConnected = false;
+        stopHold();
+        const badge = document.getElementById("statusBadge");
+        const btn = document.getElementById("connectBtn");
+        const scanBtn = document.getElementById("scanBtn");
+
+        badge.innerText = "Disconnected";
+        badge.className = "status-badge disconnected";
+        badge.style.color = "";
+
+        btn.innerText = "Hubungkan PC";
+        btn.className = "btn";
+        scanBtn.style.display = "flex";
+
+        // Munculkan kembali section pengaturan saat terputus
+        document.getElementById("connectionCard").style.display = "block";
+
+        isEditMode = false;
+        document.getElementById("macroGrid").classList.remove("edit-mode");
+        document.getElementById("editModeBtn").innerText = "Edit";
+        document.getElementById("editModeBtn").className = "btn btn-secondary";
+      }
+
+      // ==========================================
+      // LOGIKA HOLD-TO-REPEAT
+      // ==========================================
+      function startHold(index, event) {
+        if (event) event.preventDefault();
+
+        // Jika dalam mode edit, klik tombol akan membuka modal edit tombol tersebut
+        if (isEditMode) {
+          openEditModal(index);
+          return;
         }
 
-        function closeQrScanner() {
-            document.getElementById("qrModal").style.display = "none";
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().catch(err => console.error(err));
-            }
+        executeMacro(index);
+
+        if (holdInterval) clearInterval(holdInterval);
+        holdInterval = setInterval(() => {
+          executeMacro(index);
+        }, 120);
+      }
+
+      function stopHold() {
+        if (holdInterval) {
+          clearInterval(holdInterval);
+          holdInterval = null;
+        }
+      }
+
+      function executeMacro(index) {
+        if (!isConnected || !ws) return;
+
+        const btn = macroButtons[index];
+        const pinVal = document.getElementById("pinInput").value.trim() || "";
+        let payload = { pin: pinVal };
+
+        if (btn.type === "shortcut") {
+          payload.type = "shortcut";
+          payload.keys = btn.key
+            .toLowerCase()
+            .split("+")
+            .map((k) => k.trim());
+        } else {
+          payload.type = "press";
+          payload.key = btn.key.toLowerCase().trim();
         }
 
-        function onScanSuccess(decodedText) {
-            // Hentikan kamera setelah berhasil scan
-            closeQrScanner();
+        ws.send(JSON.stringify(payload));
+        if (navigator.vibrate) navigator.vibrate(20);
+      }
 
-            try {
-                // 1. Coba parse sebagai JSON: {"ip":"...", "port":"...", "pin":"..."}
-                let data = JSON.parse(decodedText);
-                if(data.ip) document.getElementById("ipInput").value = data.ip;
-                if(data.port) document.getElementById("portInput").value = data.port;
-                if(data.pin) document.getElementById("pinInput").value = data.pin;
-                
-                // Jika sukses parsing JSON, langsung coba connect
-                toggleConnection();
-
-            } catch (e) {
-                // 2. Jika bukan JSON, coba format string biasa "IP:PORT:PIN"
-                let parts = decodedText.split(":");
-                if(parts.length >= 2) {
-                    document.getElementById("ipInput").value = parts[0];
-                    document.getElementById("portInput").value = parts[1];
-                    if(parts[2]) document.getElementById("pinInput").value = parts[2];
-                    
-                    toggleConnection();
-                } else {
-                    alert("Format QR Code tidak dikenali!");
-                }
-            }
+      // ==========================================
+      // RENDER & MANAGEMENT TOMBOL (TAMBAH & EDIT)
+      // ==========================================
+      function loadMacroButtons() {
+        const saved = localStorage.getItem("rem_macro_pad");
+        if (saved) {
+          try {
+            macroButtons = JSON.parse(saved);
+          } catch {
+            macroButtons = [...DEFAULT_BUTTONS];
+          }
+        } else {
+          macroButtons = [...DEFAULT_BUTTONS];
         }
+      }
 
-        // ==========================================
-        // LOGIKA KONEKSI WEBSOCKET
-        // ==========================================
-        function toggleConnection() {
-            if (isConnected) {
-                ws.close();
-                return;
-            }
+      function saveMacroButtons() {
+        localStorage.setItem("rem_macro_pad", JSON.stringify(macroButtons));
+      }
 
-            const ip = document.getElementById("ipInput").value.trim();
-            const port = document.getElementById("portInput").value.trim();
-            const pin = document.getElementById("pinInput").value.trim();
+      function renderButtons() {
+        const grid = document.getElementById("macroGrid");
+        grid.innerHTML = "";
 
-            if (!ip) {
-                alert("Masukkan IP LAN atau Domain Cloudflare dulu, bre!");
-                return;
-            }
+        macroButtons.forEach((btn, idx) => {
+          const el = document.createElement("div");
+          el.className = `macro-btn ${btn.color}`;
 
-            localStorage.setItem("rem_ip", ip);
-            localStorage.setItem("rem_port", port);
-            localStorage.setItem("rem_pin", pin);
+          el.onmousedown = (e) => startHold(idx, e);
+          el.onmouseup = stopHold;
+          el.onmouseleave = stopHold;
+          el.ontouchstart = (e) => startHold(idx, e);
+          el.ontouchend = stopHold;
+          el.ontouchcancel = stopHold;
 
-            const badge = document.getElementById("statusBadge");
-            const btn = document.getElementById("connectBtn");
-            const scanBtn = document.getElementById("scanBtn");
-            
-            badge.innerText = "● Connecting...";
-            badge.className = "status-badge";
-            badge.style.color = "#f59e0b";
-
-            let wsUrl = ip.match(/[a-zA-Z]/) 
-                ? `wss://${ip.replace(/^(https?|wss?):\/\//, '')}` 
-                : `ws://${ip}:${port}`;
-
-            ws = new WebSocket(wsUrl);
-
-            ws.onopen = () => {
-                isConnected = true;
-                badge.innerText = "Connected";
-                badge.className = "status-badge connected";
-                badge.style.color = "";
-                
-                btn.innerText = "Putuskan Koneksi";
-                btn.className = "btn btn-danger";
-                scanBtn.style.display = "none"; // Sembunyikan tombol scan saat connect
-
-                document.getElementById("controlPanel").style.opacity = "1";
-                document.getElementById("controlPanel").style.pointerEvents = "auto";
-            };
-
-            ws.onclose = resetUI;
-            ws.onerror = (e) => {
-                alert("Gagal terhubung ke PC! Pastikan IP/Domain benar dan program desktop sudah berjalan.");
-                resetUI();
-            };
-        }
-
-        function resetUI() {
-            isConnected = false;
-            stopHold(); 
-            const badge = document.getElementById("statusBadge");
-            const btn = document.getElementById("connectBtn");
-            const scanBtn = document.getElementById("scanBtn");
-
-            badge.innerText = "Disconnected";
-            badge.className = "status-badge disconnected";
-            badge.style.color = "";
-            
-            btn.innerText = "Hubungkan PC";
-            btn.className = "btn";
-            scanBtn.style.display = "flex"; // Munculkan lagi tombol scan
-
-            document.getElementById("controlPanel").style.opacity = "0.5";
-            document.getElementById("controlPanel").style.pointerEvents = "none";
-            isEditMode = false;
-            document.getElementById("macroGrid").classList.remove("edit-mode");
-        }
-
-        // ==========================================
-        // LOGIKA HOLD-TO-REPEAT
-        // ==========================================
-        function startHold(index, event) {
-            if (event) event.preventDefault(); 
-
-            if (isEditMode) {
-                if (confirm(`Hapus tombol "${macroButtons[index].label}"?`)) {
-                    macroButtons.splice(index, 1);
-                    saveMacroButtons();
-                    renderButtons();
-                }
-                return;
-            }
-
-            if (!isConnected || !ws) return;
-
-            executeMacro(index);
-
-            if (holdInterval) clearInterval(holdInterval);
-            holdInterval = setInterval(() => {
-                executeMacro(index);
-            }, 120);
-        }
-
-        function stopHold() {
-            if (holdInterval) {
-                clearInterval(holdInterval);
-                holdInterval = null;
-            }
-        }
-
-        function executeMacro(index) {
-            if (!isConnected || !ws) return;
-
-            const btn = macroButtons[index];
-            const pinVal = document.getElementById("pinInput").value.trim() || "";
-            let payload = { pin: pinVal };
-
-            if (btn.type === "shortcut") {
-                payload.type = "shortcut";
-                payload.keys = btn.key.toLowerCase().split("+").map(k => k.trim());
-            } else {
-                payload.type = "press";
-                payload.key = btn.key.toLowerCase().trim();
-            }
-
-            ws.send(JSON.stringify(payload));
-            if (navigator.vibrate) navigator.vibrate(20); 
-        }
-
-        // ==========================================
-        // RENDER & MANAGEMENT TOMBOL
-        // ==========================================
-        function loadMacroButtons() {
-            const saved = localStorage.getItem("rem_macro_pad");
-            if (saved) {
-                try { macroButtons = JSON.parse(saved); } 
-                catch { macroButtons = [...DEFAULT_BUTTONS]; }
-            } else {
-                macroButtons = [...DEFAULT_BUTTONS];
-            }
-        }
-
-        function saveMacroButtons() {
-            localStorage.setItem("rem_macro_pad", JSON.stringify(macroButtons));
-        }
-
-        function renderButtons() {
-            const grid = document.getElementById("macroGrid");
-            grid.innerHTML = "";
-
-            macroButtons.forEach((btn, idx) => {
-                const el = document.createElement("div");
-                el.className = `macro-btn ${btn.color}`;
-
-                el.onmousedown = (e) => startHold(idx, e);
-                el.onmouseup = stopHold;
-                el.onmouseleave = stopHold;
-                el.ontouchstart = (e) => startHold(idx, e);
-                el.ontouchend = stopHold;
-                el.ontouchcancel = stopHold;
-
-                el.innerHTML = `
-                    <span class="del-badge">Hapus</span>
+          el.innerHTML = `
+                    <span class="edit-badge">Edit</span>
                     <div class="macro-label">${btn.label}</div>
                     <div class="macro-sub">${btn.key.toUpperCase()}</div>
                 `;
-                grid.appendChild(el);
-            });
+          grid.appendChild(el);
+        });
+      }
+
+      function toggleEditMode() {
+        isEditMode = !isEditMode;
+        const grid = document.getElementById("macroGrid");
+        const editBtn = document.getElementById("editModeBtn");
+        if (isEditMode) {
+          grid.classList.add("edit-mode");
+          editBtn.innerText = "Selesai";
+          editBtn.className = "btn btn-success";
+        } else {
+          grid.classList.remove("edit-mode");
+          editBtn.innerText = "Edit";
+          editBtn.className = "btn btn-secondary";
+        }
+      }
+
+      function openAddModal() {
+        document.getElementById("modalTitle").innerText =
+          "Buat Tombol Macro Baru";
+        document.getElementById("editIndex").value = "-1";
+        document.getElementById("mLabel").value = "";
+        document.getElementById("mType").value = "press";
+        document.getElementById("mKey").value = "";
+        document.getElementById("mColor").value = "theme-blue";
+
+        // Tombol modal untuk penambahan baru (Batal & Simpan)
+        document.getElementById("modalActionButtons").innerHTML = `
+                <button class="btn btn-secondary" onclick="closeMacroModal()">Batal</button>
+                <button class="btn btn-success" onclick="saveMacroButton()">Simpan</button>
+            `;
+        document.getElementById("macroModal").style.display = "flex";
+      }
+
+      function openEditModal(index) {
+        const btn = macroButtons[index];
+        document.getElementById("modalTitle").innerText = "Edit Tombol Macro";
+        document.getElementById("editIndex").value = index;
+        document.getElementById("mLabel").value = btn.label;
+        document.getElementById("mType").value = btn.type;
+        document.getElementById("mKey").value = btn.key;
+        document.getElementById("mColor").value = btn.color;
+
+        // Tombol modal untuk pengeditan (Dilengkapi tombol Hapus & Perbarui)
+        document.getElementById("modalActionButtons").innerHTML = `
+                <button class="btn btn-danger" onclick="deleteMacroButton(${index})">Hapus</button>
+                <button class="btn btn-secondary" onclick="closeMacroModal()">Batal</button>
+                <button class="btn btn-success" onclick="saveMacroButton()">Perbarui</button>
+            `;
+        document.getElementById("macroModal").style.display = "flex";
+      }
+
+      function closeMacroModal() {
+        document.getElementById("macroModal").style.display = "none";
+      }
+
+      function saveMacroButton() {
+        const index = parseInt(document.getElementById("editIndex").value);
+        const label = document.getElementById("mLabel").value.trim();
+        const type = document.getElementById("mType").value;
+        const key = document.getElementById("mKey").value.trim();
+        const color = document.getElementById("mColor").value;
+
+        if (!label || !key) {
+          alert("Nama label dan tombol keyboard wajib diisi!");
+          return;
         }
 
-        function toggleEditMode() {
-            isEditMode = !isEditMode;
-            const grid = document.getElementById("macroGrid");
-            if (isEditMode) {
-                grid.classList.add("edit-mode");
-                alert("Mode Hapus Aktif: Klik pada tombol yang ingin dihapus.");
-            } else {
-                grid.classList.remove("edit-mode");
-            }
+        if (index === -1) {
+          macroButtons.push({ label, type, key, color });
+        } else {
+          macroButtons[index] = { label, type, key, color };
         }
 
-        function openAddModal() {
-            document.getElementById("addModal").style.display = "flex";
+        saveMacroButtons();
+        renderButtons();
+        closeMacroModal();
+      }
+
+      function deleteMacroButton(index) {
+        if (confirm(`Hapus tombol "${macroButtons[index].label}"?`)) {
+          macroButtons.splice(index, 1);
+          saveMacroButtons();
+          renderButtons();
+          closeMacroModal();
         }
-
-        function closeAddModal() {
-            document.getElementById("addModal").style.display = "none";
-            document.getElementById("mLabel").value = "";
-            document.getElementById("mKey").value = "";
-        }
-
-        function saveNewButton() {
-            const label = document.getElementById("mLabel").value.trim();
-            const type = document.getElementById("mType").value;
-            const key = document.getElementById("mKey").value.trim();
-            const color = document.getElementById("mColor").value;
-
-            if (!label || !key) {
-                alert("Nama label dan tombol keyboard wajib diisi!");
-                return;
-            }
-
-            macroButtons.push({ label, type, key, color });
-            saveMacroButtons();
-            renderButtons();
-            closeAddModal();
-        }
+      }
     </script>
-</body>
+  </body>
 </html>
