@@ -280,6 +280,7 @@ select:focus {
   padding: 12px;
   overflow-y: auto;
   z-index: 10004;
+  width: 50%;
 }
 
 /* Sembunyikan elemen floating lama karena sudah diganti panel permanen */
