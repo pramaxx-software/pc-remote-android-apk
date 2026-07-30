@@ -172,6 +172,15 @@ let isConnected = false;
 let isEditMode = false;
 let holdInterval = null;
 
+// Trackpad & Screen Stream state
+let isStreaming = false;
+let lastFrameTime = 0;
+let fpsDisplay = 0;
+let mouseSensitivity = 1.5;
+let dragLastX = null;
+let dragLastY = null;
+let dragMoved = 0;
+
 // Scanner Instance
 let html5QrcodeScanner = null;
 
@@ -192,6 +201,15 @@ window.onload = () => {
 
   loadMacroButtons();
   renderButtons();
+
+  const savedSens = localStorage.getItem("rem_sensitivity");
+  if (savedSens) {
+    mouseSensitivity = parseFloat(savedSens);
+    document.getElementById("sensSlider").value = mouseSensitivity;
+    document.getElementById("sensValue").innerText = `${mouseSensitivity}x`;
+  }
+
+  setupTrackpad();
 };
 
 // ==========================================
@@ -306,6 +324,19 @@ function toggleConnection() {
     scanBtn.style.display = "none";
 
     document.getElementById("connectionCard").style.display = "none";
+    document.getElementById("tabBar").style.display = "flex";
+    switchTab("macro");
+  };
+
+  ws.onmessage = (event) => {
+    let data;
+    try {
+      data = JSON.parse(event.data);
+    } catch (err) {
+      console.warn("Pesan tidak valid dari server:", event.data);
+      return;
+    }
+    handleServerMessage(data);
   };
 
   ws.onclose = (event) => {
@@ -327,6 +358,34 @@ function toggleConnection() {
   };
 }
 
+// ==========================================
+// PESAN MASUK DARI SERVER (FRAME STREAM, DLL)
+// ==========================================
+function handleServerMessage(data) {
+  if (data.type === "frame") {
+    const img = document.getElementById("screenImage");
+    const placeholder = document.getElementById("screenPlaceholder");
+    img.src = `data:image/jpeg;base64,${data.data}`;
+    img.classList.add("has-frame");
+    if (placeholder) placeholder.style.display = "none";
+
+    if (isStreaming) {
+      const now = performance.now();
+      if (lastFrameTime) {
+        const instFps = 1000 / Math.max(now - lastFrameTime, 1);
+        fpsDisplay = fpsDisplay ? fpsDisplay * 0.8 + instFps * 0.2 : instFps;
+      }
+      lastFrameTime = now;
+      const statusEl = document.getElementById("streamStatus");
+      statusEl.innerText = `Aktif (~${Math.round(fpsDisplay)} fps)`;
+      statusEl.className = "status-badge connected";
+    }
+  } else if (data.type === "stream_error") {
+    TOAST.error(data.message || "Screen streaming gagal diaktifkan.");
+    stopStreamingUI();
+  }
+}
+
 function resetUI() {
   isConnected = false;
   stopHold();
@@ -343,11 +402,38 @@ function resetUI() {
   scanBtn.style.display = "flex";
 
   document.getElementById("connectionCard").style.display = "block";
+  document.getElementById("tabBar").style.display = "none";
 
   isEditMode = false;
   document.getElementById("macroGrid").classList.remove("edit-mode");
   document.getElementById("editModeBtn").innerText = "Edit";
   document.getElementById("editModeBtn").className = "btn btn-secondary";
+
+  stopStreamingUI();
+  const img = document.getElementById("screenImage");
+  const placeholder = document.getElementById("screenPlaceholder");
+  if (img) {
+    img.classList.remove("has-frame");
+    img.src = "";
+  }
+  if (placeholder) placeholder.style.display = "block";
+}
+
+// ==========================================
+// FITUR TAB BAR
+// ==========================================
+function switchTab(tab) {
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    panel.style.display = panel.id === `panel-${tab}` ? "block" : "none";
+  });
+  document.querySelectorAll(".tab-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+
+  // Hentikan streaming saat pindah keluar dari tab Screen agar hemat bandwidth
+  if (tab !== "screen" && isStreaming) {
+    toggleStream();
+  }
 }
 
 // ==========================================
@@ -542,4 +628,167 @@ function deleteMacroButton(index) {
       closeMacroModal();
     }
   });
+}
+
+// ==========================================
+// HELPER: KIRIM PAYLOAD KE SERVER
+// ==========================================
+function sendToServer(payload) {
+  if (!isConnected || !ws) return;
+  const pinVal = document.getElementById("pinInput").value.trim() || "";
+  payload.pin = pinVal;
+  try {
+    ws.send(JSON.stringify(payload));
+  } catch (err) {
+    console.error("Gagal mengirim data ke server:", err);
+  }
+}
+
+// ==========================================
+// FITUR TRACKPAD MOUSE
+// ==========================================
+function setupTrackpad() {
+  const pad = document.getElementById("trackpadArea");
+  if (!pad) return;
+
+  // Touch (Android/mobile)
+  pad.addEventListener(
+    "touchstart",
+    (e) => {
+      const t = e.touches[0];
+      dragLastX = t.clientX;
+      dragLastY = t.clientY;
+      dragMoved = 0;
+    },
+    { passive: true },
+  );
+
+  pad.addEventListener(
+    "touchmove",
+    (e) => {
+      const t = e.touches[0];
+      handleTrackpadMove(t.clientX, t.clientY);
+    },
+    { passive: true },
+  );
+
+  pad.addEventListener("touchend", () => {
+    handleTrackpadRelease();
+  });
+
+  // Mouse (buat testing di browser desktop)
+  let mouseDown = false;
+  pad.addEventListener("mousedown", (e) => {
+    mouseDown = true;
+    dragLastX = e.clientX;
+    dragLastY = e.clientY;
+    dragMoved = 0;
+  });
+  pad.addEventListener("mousemove", (e) => {
+    if (!mouseDown) return;
+    handleTrackpadMove(e.clientX, e.clientY);
+  });
+  window.addEventListener("mouseup", () => {
+    if (!mouseDown) return;
+    mouseDown = false;
+    handleTrackpadRelease();
+  });
+
+  // Scroll dengan mouse wheel (testing di browser)
+  pad.addEventListener(
+    "wheel",
+    (e) => {
+      e.preventDefault();
+      sendMouseScroll(e.deltaY > 0 ? -1 : 1);
+    },
+    { passive: false },
+  );
+}
+
+function handleTrackpadMove(clientX, clientY) {
+  if (dragLastX === null) {
+    dragLastX = clientX;
+    dragLastY = clientY;
+    return;
+  }
+  const dx = clientX - dragLastX;
+  const dy = clientY - dragLastY;
+  dragLastX = clientX;
+  dragLastY = clientY;
+  dragMoved += Math.abs(dx) + Math.abs(dy);
+
+  if (dx || dy) {
+    sendToServer({
+      type: "mouse_move",
+      dx: dx * mouseSensitivity,
+      dy: dy * mouseSensitivity,
+    });
+  }
+}
+
+function handleTrackpadRelease() {
+  if (dragMoved < 4) {
+    sendMouseClick("left");
+  }
+  dragLastX = null;
+  dragLastY = null;
+  dragMoved = 0;
+}
+
+function sendMouseClick(button, double) {
+  sendToServer({ type: "mouse_click", button: button, double: !!double });
+  if (navigator.vibrate) navigator.vibrate(15);
+}
+
+function sendMouseScroll(direction) {
+  sendToServer({ type: "mouse_scroll", dx: 0, dy: direction });
+}
+
+function onSensitivityChange(value) {
+  mouseSensitivity = parseFloat(value);
+  document.getElementById("sensValue").innerText = `${mouseSensitivity}x`;
+  localStorage.setItem("rem_sensitivity", mouseSensitivity);
+}
+
+// ==========================================
+// FITUR SCREEN STREAMING
+// ==========================================
+function toggleStream() {
+  if (!isConnected) {
+    TOAST.info("Hubungkan ke PC terlebih dahulu!");
+    return;
+  }
+
+  const btn = document.getElementById("streamToggleBtn");
+  const statusEl = document.getElementById("streamStatus");
+
+  if (!isStreaming) {
+    isStreaming = true;
+    lastFrameTime = 0;
+    fpsDisplay = 0;
+    sendToServer({ type: "stream_start" });
+    btn.innerText = "Stop Streaming";
+    btn.className = "btn btn-danger";
+    statusEl.innerText = "Menyambung...";
+    statusEl.className = "status-badge";
+    statusEl.style.color = "#f59e0b";
+  } else {
+    stopStreamingUI();
+    sendToServer({ type: "stream_stop" });
+  }
+}
+
+function stopStreamingUI() {
+  isStreaming = false;
+  const btn = document.getElementById("streamToggleBtn");
+  const statusEl = document.getElementById("streamStatus");
+  if (btn) {
+    btn.innerText = "Mulai Streaming";
+    btn.className = "btn btn-success";
+  }
+  if (statusEl) {
+    statusEl.innerText = "Nonaktif";
+    statusEl.className = "status-badge disconnected";
+    statusEl.style.color = "";
+  }
 }

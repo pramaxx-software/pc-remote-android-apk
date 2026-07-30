@@ -175,6 +175,105 @@ select:focus {
   margin-top: 5px;
 }
 
+/* --- TAB BAR --- */
+.tab-bar {
+  display: none;
+  gap: 8px;
+  background-color: var(--bg-card);
+  border-radius: 14px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-sub);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tab-btn.active {
+  background-color: var(--accent);
+  color: white;
+}
+
+/* --- TRACKPAD --- */
+#trackpadArea {
+  height: 220px;
+  background-color: var(--bg-input);
+  border-radius: 14px;
+  border: 1px solid #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  touch-action: none;
+  position: relative;
+  overflow: hidden;
+}
+
+#trackpadHint {
+  font-size: 12px;
+  color: var(--text-sub);
+  padding: 0 20px;
+  pointer-events: none;
+}
+
+.mouse-btn-row,
+.scroll-btn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.mouse-btn-row .btn,
+.scroll-btn-row .btn {
+  padding: 12px 6px;
+  font-size: 13px;
+}
+
+input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+  background: transparent;
+  padding: 0;
+}
+
+/* --- SCREEN VIEW --- */
+.screen-container {
+  margin-top: 12px;
+  background-color: #000;
+  border-radius: 14px;
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.screen-container img {
+  width: 100%;
+  height: auto;
+  display: none;
+  border-radius: 14px;
+}
+
+.screen-container img.has-frame {
+  display: block;
+}
+
+#screenPlaceholder {
+  color: #475569;
+  font-size: 13px;
+}
+
 /* --- MACRO PAD GRID (STREAM DECK STYLE) --- */
 .section-header {
   display: flex;

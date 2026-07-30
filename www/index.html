@@ -11,7 +11,7 @@
     <script src="htmlqrcode.min.js"></script>
     <script src="sweetalert2.js"></script>
     <link rel="stylesheet" href="sweetalert2.css" />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="new-style.css" />
   </head>
   <body>
     <!-- PULL TO REFRESH INDIKATOR -->
@@ -77,8 +77,29 @@
       </div>
     </div>
 
+    <!-- TAB BAR (MUNCUL SAAT SUDAH TERHUBUNG) -->
+    <div class="tab-bar" id="tabBar">
+      <button
+        class="tab-btn active"
+        data-tab="macro"
+        onclick="switchTab('macro')"
+      >
+        ⌨ Macro
+      </button>
+      <button
+        class="tab-btn"
+        data-tab="trackpad"
+        onclick="switchTab('trackpad')"
+      >
+        🖱 Trackpad
+      </button>
+      <button class="tab-btn" data-tab="screen" onclick="switchTab('screen')">
+        🖥 Screen
+      </button>
+    </div>
+
     <!-- 3. CUSTOM MACRO PAD -->
-    <div class="card" id="controlPanel">
+    <div class="card tab-panel" id="panel-macro">
       <div class="section-header">
         <div class="section-title">Trigger Pad (Hold-to-Repeat)</div>
         <div style="display: flex; gap: 6px">
@@ -100,6 +121,75 @@
         </div>
       </div>
       <div class="macro-grid" id="macroGrid"></div>
+    </div>
+
+    <!-- 3B. TRACKPAD MOUSE -->
+    <div class="card tab-panel" id="panel-trackpad" style="display: none">
+      <div class="section-header">
+        <div class="section-title">Trackpad Mouse</div>
+      </div>
+      <div id="trackpadArea">
+        <span id="trackpadHint"
+          >Geser untuk gerakkan kursor · Tap = klik kiri</span
+        >
+      </div>
+      <div class="mouse-btn-row">
+        <button
+          class="btn"
+          style="background: var(--bg-input)"
+          onclick="sendMouseClick('left')"
+        >
+          Klik Kiri
+        </button>
+        <button class="btn btn-secondary" onclick="sendMouseClick('right')">
+          Klik Kanan
+        </button>
+        <button
+          class="btn btn-secondary"
+          onclick="sendMouseClick('left', true)"
+        >
+          Double Klik
+        </button>
+      </div>
+      <div class="scroll-btn-row">
+        <button class="btn btn-secondary" onclick="sendMouseScroll(1)">
+          ▲ Scroll Atas
+        </button>
+        <button class="btn btn-secondary" onclick="sendMouseScroll(-1)">
+          ▼ Scroll Bawah
+        </button>
+      </div>
+      <div class="form-group" style="margin-top: 12px">
+        <label>Sensitivitas Kursor: <span id="sensValue">1.5x</span></label>
+        <input
+          type="range"
+          id="sensSlider"
+          min="0.5"
+          max="3"
+          step="0.1"
+          value="1.5"
+          oninput="onSensitivityChange(this.value)"
+        />
+      </div>
+    </div>
+
+    <!-- 3C. SCREEN VIEW -->
+    <div class="card tab-panel" id="panel-screen" style="display: none">
+      <div class="section-header">
+        <div class="section-title">Screen View</div>
+        <div id="streamStatus" class="status-badge disconnected">Nonaktif</div>
+      </div>
+      <button
+        id="streamToggleBtn"
+        class="btn btn-success"
+        onclick="toggleStream()"
+      >
+        Mulai Streaming
+      </button>
+      <div class="screen-container">
+        <img id="screenImage" alt="Live screen" />
+        <span id="screenPlaceholder">Belum ada gambar</span>
+      </div>
     </div>
 
     <!-- 4. MODAL TAMBAH / EDIT TOMBOL -->
@@ -217,6 +307,6 @@
       <div class="debug-body" id="debugLogBody"></div>
     </div>
 
-    <script src="main.js"></script>
+    <script src="new-main.js"></script>
   </body>
 </html>
