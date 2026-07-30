@@ -152,6 +152,24 @@ function toggleConnection() {
   };
 }
 
+// function handleServerMessage(data) {
+//   if (data.type === "frame") {
+//     const img = document.getElementById("screenImage");
+//     const placeholder = document.getElementById("screenPlaceholder");
+//     img.src = `data:image/jpeg;base64,${data.data}`;
+//     img.classList.add("has-frame");
+//     if (placeholder) placeholder.style.display = "none";
+
+//     // Update posisi kursor client jika server mengirimkan koordinat kursor (opsional/ekstraksi jika didukung backend)
+//     // if (data.cursor_x !== undefined && data.cursor_y !== undefined) {
+//     //   updateClientCursor(data.cursor_x, data.cursor_y);
+//     // }
+//   } else if (data.type === "stream_error") {
+//     TOAST.error(data.message || "Screen streaming gagal.");
+//     stopStreamingUI();
+//   }
+// }
+
 function handleServerMessage(data) {
   if (data.type === "frame") {
     const img = document.getElementById("screenImage");
@@ -159,14 +177,10 @@ function handleServerMessage(data) {
     img.src = `data:image/jpeg;base64,${data.data}`;
     img.classList.add("has-frame");
     if (placeholder) placeholder.style.display = "none";
-
-    // Update posisi kursor client jika server mengirimkan koordinat kursor (opsional/ekstraksi jika didukung backend)
-    // if (data.cursor_x !== undefined && data.cursor_y !== undefined) {
-    //   updateClientCursor(data.cursor_x, data.cursor_y);
-    // }
   } else if (data.type === "stream_error") {
     TOAST.error(data.message || "Screen streaming gagal.");
-    stopStreamingUI();
+    // Ganti stopStreamingUI() yang sudah dihapus dengan exitStreamTab()
+    exitStreamTab();
   }
 }
 
