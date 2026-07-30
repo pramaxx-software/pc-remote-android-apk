@@ -5,7 +5,11 @@ const config: CapacitorConfig = {
   appName: 'Pramaxx Remote',
   webDir: 'www',
   server: {
-    cleartext: true
+    cleartext: true,
+    androidScheme: "http"
+  },
+  android: {
+    allowMixedContent: true
   },
   plugins:{
    StatusBar: {
