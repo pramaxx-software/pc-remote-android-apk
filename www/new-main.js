@@ -161,9 +161,9 @@ function handleServerMessage(data) {
     if (placeholder) placeholder.style.display = "none";
 
     // Update posisi kursor client jika server mengirimkan koordinat kursor (opsional/ekstraksi jika didukung backend)
-    if (data.cursor_x !== undefined && data.cursor_y !== undefined) {
-      updateClientCursor(data.cursor_x, data.cursor_y);
-    }
+    // if (data.cursor_x !== undefined && data.cursor_y !== undefined) {
+    //   updateClientCursor(data.cursor_x, data.cursor_y);
+    // }
   } else if (data.type === "stream_error") {
     TOAST.error(data.message || "Screen streaming gagal.");
     stopStreamingUI();
@@ -293,21 +293,25 @@ function togglePropertiesPanel() {
 // ==========================================
 function setupStreamTouchpad() {
   const pad = document.getElementById("streamTouchArea");
-  if (!pad) return;
+  const img = document.getElementById("screenImage"); // Pastikan ini img tag stream lo
+
+  if (!pad || !img) return;
 
   pad.addEventListener(
     "touchstart",
     (e) => {
-      // Abaikan jika menyentuh tombol floating / panel properties
       if (
         e.target.closest("#propertiesPanel") ||
         e.target.closest("#floatingPropBtn")
       )
         return;
+
       const t = e.touches[0];
       dragLastX = t.clientX;
       dragLastY = t.clientY;
       dragMoved = 0;
+
+      handleAbsolutePosition(t.clientX, t.clientY, pad, img);
     },
     { passive: true },
   );
@@ -317,7 +321,15 @@ function setupStreamTouchpad() {
     (e) => {
       if (dragLastX === null) return;
       const t = e.touches[0];
-      handleTrackpadMove(t.clientX, t.clientY);
+
+      const dx = t.clientX - dragLastX;
+      const dy = t.clientY - dragLastY;
+      dragMoved += Math.abs(dx) + Math.abs(dy);
+
+      dragLastX = t.clientX;
+      dragLastY = t.clientY;
+
+      handleAbsolutePosition(t.clientX, t.clientY, pad, img);
     },
     { passive: true },
   );
@@ -328,7 +340,41 @@ function setupStreamTouchpad() {
       e.target.closest("#floatingPropBtn")
     )
       return;
-    handleTrackpadRelease();
+
+    if (dragMoved < 4) {
+      sendMouseClick("left");
+    }
+    dragLastX = null;
+    dragLastY = null;
+    dragMoved = 0;
+  });
+}
+
+function handleAbsolutePosition(clientX, clientY, container, image) {
+  // 1. Dapatkan posisi container dan gambar yang sudah di scale (object-fit: contain)
+  const rect = image.getBoundingClientRect();
+
+  // 2. Hitung posisi sentuhan relatif terhadap pojok kiri atas *gambar* yang sedang tampil
+  let x = clientX - rect.left;
+  let y = clientY - rect.top;
+
+  // 3. Batasi agar koordinat tidak keluar dari batas gambar
+  x = Math.max(0, Math.min(x, rect.width));
+  y = Math.max(0, Math.min(y, rect.height));
+
+  // 4. Update kursor lokal (visual feedback untuk user)
+  // Ingat, container kita (pad) memiliki posisi yang berbeda, jadi kita kembalikan ke clientX/Y
+  updateClientCursor(clientX, clientY);
+
+  // 5. Kirim data persentase posisi mouse ke server
+  // (Mengapa persentase? Agar server bisa mengkalibrasikan posisinya di layar PC berapapun resolusinya)
+  const percentX = x / rect.width;
+  const percentY = y / rect.height;
+
+  sendToServer({
+    type: "mouse_position_percent",
+    percentX: percentX,
+    percentY: percentY,
   });
 }
 
