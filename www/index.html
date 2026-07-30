@@ -7,7 +7,6 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Pramaxx Remote Keyboard</title>
-    <!-- TAMBAHAN: Library Scanner QR Code -->
     <script src="htmlqrcode.min.js"></script>
     <script src="sweetalert2.js"></script>
     <link rel="stylesheet" href="sweetalert2.css" />
@@ -20,12 +19,12 @@
     </div>
 
     <!-- 1. HEADER & STATUS -->
-    <div class="card header">
+    <div class="card header" id="mainHeaderCard">
       <div class="title">Pramaxx Remote Keyboard</div>
       <div id="statusBadge" class="status-badge disconnected">Disconnected</div>
     </div>
 
-    <!-- 2. KONEKSI & PIN (DENGAN FITUR QR) - AKAN DISSEMBUNYIKAN SAAT TERHUBUNG -->
+    <!-- 2. KONEKSI & PIN -->
     <div class="card" id="connectionCard">
       <div class="form-row">
         <div class="form-group">
@@ -56,7 +55,6 @@
         />
       </div>
 
-      <!-- Action Row (Connect & Scan QR) -->
       <div class="action-row">
         <button
           id="connectBtn"
@@ -77,24 +75,17 @@
       </div>
     </div>
 
-    <!-- TAB BAR (MUNCUL SAAT SUDAH TERHUBUNG) -->
+    <!-- TAB BAR (HANYA 2 MENU UTAMA: MACRO & STREAM) -->
     <div class="tab-bar" id="tabBar">
       <button
         class="tab-btn active"
         data-tab="macro"
         onclick="switchTab('macro')"
       >
-        ⌨ Macro
+        ⌨ Macro Pad
       </button>
-      <button
-        class="tab-btn"
-        data-tab="trackpad"
-        onclick="switchTab('trackpad')"
-      >
-        🖱 Trackpad
-      </button>
-      <button class="tab-btn" data-tab="screen" onclick="switchTab('screen')">
-        🖥 Screen
+      <button class="tab-btn" data-tab="stream" onclick="switchTab('stream')">
+        🖥 Stream & Control
       </button>
     </div>
 
@@ -123,72 +114,102 @@
       <div class="macro-grid" id="macroGrid"></div>
     </div>
 
-    <!-- 3B. TRACKPAD MOUSE -->
-    <div class="card tab-panel" id="panel-trackpad" style="display: none">
-      <div class="section-header">
-        <div class="section-title">Trackpad Mouse</div>
-      </div>
-      <div id="trackpadArea">
-        <span id="trackpadHint"
-          >Geser untuk gerakkan kursor · Tap = klik kiri</span
-        >
-      </div>
-      <div class="mouse-btn-row">
-        <button
-          class="btn"
-          style="background: var(--bg-input)"
-          onclick="sendMouseClick('left')"
-        >
-          Klik Kiri
-        </button>
-        <button class="btn btn-secondary" onclick="sendMouseClick('right')">
-          Klik Kanan
-        </button>
-        <button
-          class="btn btn-secondary"
-          onclick="sendMouseClick('left', true)"
-        >
-          Double Klik
-        </button>
-      </div>
-      <div class="scroll-btn-row">
-        <button class="btn btn-secondary" onclick="sendMouseScroll(1)">
-          ▲ Scroll Atas
-        </button>
-        <button class="btn btn-secondary" onclick="sendMouseScroll(-1)">
-          ▼ Scroll Bawah
-        </button>
-      </div>
-      <div class="form-group" style="margin-top: 12px">
-        <label>Sensitivitas Kursor: <span id="sensValue">1.5x</span></label>
-        <input
-          type="range"
-          id="sensSlider"
-          min="0.5"
-          max="3"
-          step="0.1"
-          value="1.5"
-          oninput="onSensitivityChange(this.value)"
-        />
-      </div>
-    </div>
-
-    <!-- 3C. SCREEN VIEW -->
-    <div class="card tab-panel" id="panel-screen" style="display: none">
-      <div class="section-header">
-        <div class="section-title">Screen View</div>
-        <div id="streamStatus" class="status-badge disconnected">Nonaktif</div>
-      </div>
-      <button
-        id="streamToggleBtn"
-        class="btn btn-success"
-        onclick="toggleStream()"
-      >
-        Mulai Streaming
-      </button>
-      <div class="screen-container">
+    <!-- 3B. STREAM TAB (OTOMATIS FULLSCREEN, LANDSCAPE & FLOATING PROPERTIES) -->
+    <div class="stream-wrapper" id="panel-stream">
+      <div class="screen-container" id="streamTouchArea">
         <img id="screenImage" alt="Live screen" />
-        <span id="screenPlaceholder">Belum ada gambar</span>
+        <span id="screenPlaceholder">Menghubungkan & Memuat Stream...</span>
+        <!-- Kursor Client -->
+        <div id="clientCursor"></div>
+      </div>
+
+      <!-- Floating Button untuk Toggle Properties Control (Mouse & Keyboard) -->
+      <button id="floatingPropBtn" onclick="togglePropertiesPanel()">⚙️</button>
+
+      <!-- Panel Properties (Kontrol Mouse & Keyboard Tersembunyi di Floating Menu) -->
+      <div id="propertiesPanel">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <span class="prop-section-title" style="margin: 0"
+            >Stream & Mouse Control</span
+          >
+          <button
+            onclick="togglePropertiesPanel()"
+            style="
+              background: none;
+              border: none;
+              color: white;
+              font-size: 16px;
+              cursor: pointer;
+            "
+          >
+            ✕
+          </button>
+        </div>
+
+        <div>
+          <div class="prop-section-title">Klik Mouse</div>
+          <div class="mouse-btn-row">
+            <button
+              class="btn"
+              style="background: var(--bg-input)"
+              onclick="sendMouseClick('left')"
+            >
+              Klik Kiri
+            </button>
+            <button class="btn btn-secondary" onclick="sendMouseClick('right')">
+              Klik Kanan
+            </button>
+            <button
+              class="btn btn-secondary"
+              onclick="sendMouseClick('left', true)"
+            >
+              Double
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <div class="prop-section-title">Scroll</div>
+          <div class="scroll-btn-row">
+            <button class="btn btn-secondary" onclick="sendMouseScroll(1)">
+              ▲ Atas
+            </button>
+            <button class="btn btn-secondary" onclick="sendMouseScroll(-1)">
+              ▼ Bawah
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 10px"
+            >Sensitivitas: <span id="sensValue">1.5x</span></label
+          >
+          <input
+            type="range"
+            id="sensSlider"
+            min="0.5"
+            max="3"
+            step="0.1"
+            value="1.5"
+            oninput="onSensitivityChange(this.value)"
+          />
+        </div>
+
+        <div>
+          <button
+            class="btn btn-danger"
+            style="padding: 8px; font-size: 12px"
+            onclick="exitStreamTab()"
+          >
+            Keluar Stream Mode
+          </button>
+        </div>
       </div>
     </div>
 
@@ -260,51 +281,11 @@
         >
           Arahkan Kamera ke QR Code
         </h3>
-
-        <!-- Area Kamera -->
         <div id="qrReader"></div>
-
         <button class="btn btn-danger" onclick="closeQrScanner()">
           Tutup Kamera
         </button>
       </div>
-    </div>
-
-    <!-- FLOATING DEBUG CONSOLE -->
-    <!-- <button id="toggleDebugBtn" onclick="toggleDebugConsole()">🐛 Log</button> -->
-    <div id="debugConsole">
-      <div class="debug-header">
-        <span>Console Debugger</span>
-        <div style="display: flex; gap: 5px">
-          <button
-            onclick="clearDebugLogs()"
-            style="
-              background: #ef4444;
-              border: none;
-              color: white;
-              padding: 2px 6px;
-              border-radius: 4px;
-              font-size: 10px;
-            "
-          >
-            Clear
-          </button>
-          <button
-            onclick="toggleDebugConsole()"
-            style="
-              background: #475569;
-              border: none;
-              color: white;
-              padding: 2px 6px;
-              border-radius: 4px;
-              font-size: 10px;
-            "
-          >
-            X
-          </button>
-        </div>
-      </div>
-      <div class="debug-body" id="debugLogBody"></div>
     </div>
 
     <script src="new-main.js"></script>

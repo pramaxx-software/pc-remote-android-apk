@@ -6,7 +6,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function confirmAppReady() {
   try {
-    // Memastikan objek Capacitor dan pluginnya sudah tersedia secara global
     if (
       window.Capacitor &&
       window.Capacitor.Plugins &&
@@ -16,10 +15,6 @@ async function confirmAppReady() {
       console.log(
         "[CapgoUpdater] notifyAppReady sukses dipanggil secara global!",
       );
-    } else {
-      console.warn(
-        "[CapgoUpdater] Plugin belum siap atau berjalan di browser biasa.",
-      );
     }
   } catch (error) {
     console.error("[CapgoUpdater] Gagal memanggil notifyAppReady:", error);
@@ -27,7 +22,7 @@ async function confirmAppReady() {
 }
 
 // ==============================================
-// function TOAST SWEETALERT
+// TOAST HELPER
 // ==============================================
 const TOAST = {
   init: function (icon, title) {
@@ -37,142 +32,25 @@ const TOAST = {
       showConfirmButton: false,
       timer: 2500,
       timerProgressBar: true,
-      didOpen: (toast) => {
-        toast.onmouseenter = Swal.stopTimer;
-        toast.onmouseleave = Swal.resumeTimer;
-      },
     }).fire({
       icon: icon ?? "success",
       title: title ?? "Success",
     });
   },
-  success: (title) => {
-    return TOAST.init("success", title);
-  },
-  error: (title) => {
-    return TOAST.init("error", title);
-  },
-  warning: (title) => {
-    return TOAST.init("warning", title);
-  },
-  info: (title) => {
-    return TOAST.init("info", title);
-  },
+  success: (title) => TOAST.init("success", title),
+  error: (title) => TOAST.init("error", title),
+  warning: (title) => TOAST.init("warning", title),
+  info: (title) => TOAST.init("info", title),
 };
 
 // ==========================================
-// FITUR PULL TO REFRESH
+// STATE & VARIABLES
 // ==========================================
-let touchStartY = 0;
-let isPulling = false;
-const ptrIndicator = document.getElementById("ptrIndicator");
-const ptrText = document.getElementById("ptrText");
-
-window.addEventListener(
-  "touchstart",
-  (e) => {
-    if (window.scrollY === 0) {
-      touchStartY = e.touches[0].clientY;
-      isPulling = true;
-    }
-  },
-  { passive: true },
-);
-
-window.addEventListener(
-  "touchmove",
-  (e) => {
-    if (!isPulling) return;
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - touchStartY;
-
-    if (diff > 0 && window.scrollY === 0) {
-      const pullDistance = Math.min(diff * 0.4, 70);
-      ptrIndicator.style.height = `${pullDistance}px`;
-      if (pullDistance > 45) {
-        ptrText.innerText = "release Lepaskan untuk memperbarui...";
-      } else {
-        ptrText.innerText = "🔄 Tarik ke bawah untuk memperbarui...";
-      }
-    } else {
-      isPulling = false;
-      ptrIndicator.style.height = "0px";
-    }
-  },
-  { passive: true },
-);
-
-window.addEventListener("touchend", () => {
-  if (!isPulling) return;
-  isPulling = false;
-  const currentHeight = parseInt(ptrIndicator.style.height || "0");
-  if (currentHeight > 45) {
-    ptrText.innerText = "Memuat ulang...";
-    ptrIndicator.style.height = "40px";
-    setTimeout(() => {
-      window.location.reload();
-    }, 400);
-  } else {
-    ptrIndicator.style.height = "0px";
-  }
-});
-
-// ==========================================
-// OVERRIDE CONSOLE UNTUK DEBUGGING DI APK
-// ==========================================
-(function () {
-  const logBody = document.getElementById("debugLogBody");
-  function appendLog(type, args) {
-    if (!logBody) return;
-    const div = document.createElement("div");
-    div.className = `log-item log-${type}`;
-    const time = new Date().toLocaleTimeString();
-    let msg = args
-      .map((arg) => (typeof arg === "object" ? JSON.stringify(arg) : arg))
-      .join(" ");
-    div.innerText = `[${time}] ${msg}`;
-    logBody.appendChild(div);
-    logBody.scrollTop = logBody.scrollHeight;
-  }
-
-  const origLog = console.log;
-  const origErr = console.error;
-  const origWarn = console.warn;
-
-  console.log = function (...args) {
-    origLog.apply(console, args);
-    appendLog("info", args);
-  };
-  console.error = function (...args) {
-    origErr.apply(console, args);
-    appendLog("error", args);
-  };
-  console.warn = function (...args) {
-    origWarn.apply(console, args);
-    appendLog("info", args);
-  };
-
-  window.onerror = function (msg, url, line) {
-    appendLog("error", [`Uncaught: ${msg} (${line})`]);
-  };
-})();
-
-function toggleDebugConsole() {
-  const consoleEl = document.getElementById("debugConsole");
-  consoleEl.style.display =
-    consoleEl.style.display === "flex" ? "none" : "flex";
-}
-
-function clearDebugLogs() {
-  document.getElementById("debugLogBody").innerHTML = "";
-}
-
 let ws = null;
 let isConnected = false;
 let isEditMode = false;
 let holdInterval = null;
 
-// Trackpad & Screen Stream state
 let isStreaming = false;
 let lastFrameTime = 0;
 let fpsDisplay = 0;
@@ -180,24 +58,16 @@ let mouseSensitivity = 1.5;
 let dragLastX = null;
 let dragLastY = null;
 let dragMoved = 0;
-
-// Scanner Instance
 let html5QrcodeScanner = null;
-
-const DEFAULT_BUTTONS = [];
 
 let macroButtons = [];
 
 window.onload = () => {
-  console.log("App loaded successfully.");
   if (localStorage.getItem("rem_ip"))
     document.getElementById("ipInput").value = localStorage.getItem("rem_ip");
   if (localStorage.getItem("rem_port"))
     document.getElementById("portInput").value =
       localStorage.getItem("rem_port");
-  if (localStorage.getItem("rem_pin")) {
-    localStorage.removeItem("rem_pin");
-  }
 
   loadMacroButtons();
   renderButtons();
@@ -209,66 +79,11 @@ window.onload = () => {
     document.getElementById("sensValue").innerText = `${mouseSensitivity}x`;
   }
 
-  setupTrackpad();
+  setupStreamTouchpad();
 };
 
 // ==========================================
-// FITUR SCANNER QR CODE
-// ==========================================
-function openQrScanner() {
-  if (isConnected) {
-    TOAST.info("Putuskan koneksi terlebih dahulu sebelum scan QR!");
-    return;
-  }
-
-  document.getElementById("qrModal").style.display = "flex";
-
-  html5QrcodeScanner = new Html5Qrcode("qrReader");
-  const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-  html5QrcodeScanner
-    .start({ facingMode: "environment" }, config, onScanSuccess)
-    .catch((err) => {
-      console.error("Camera error:", err);
-      TOAST.error("Gagal mengakses kamera. Pastikan izin kamera aktif!");
-      closeQrScanner();
-    });
-}
-
-function closeQrScanner() {
-  document.getElementById("qrModal").style.display = "none";
-  if (html5QrcodeScanner) {
-    html5QrcodeScanner.stop().catch((err) => console.error(err));
-  }
-}
-
-function onScanSuccess(decodedText) {
-  console.log("QR Scanned:", decodedText);
-  closeQrScanner();
-
-  try {
-    let data = JSON.parse(decodedText);
-    if (data.ip) document.getElementById("ipInput").value = data.ip;
-    if (data.port) document.getElementById("portInput").value = data.port;
-    if (data.pin) document.getElementById("pinInput").value = data.pin;
-
-    toggleConnection();
-  } catch (e) {
-    let parts = decodedText.split(":");
-    if (parts.length >= 2) {
-      document.getElementById("ipInput").value = parts[0];
-      document.getElementById("portInput").value = parts[1];
-      if (parts[2]) document.getElementById("pinInput").value = parts[2];
-
-      toggleConnection();
-    } else {
-      TOAST.error("Format QR Code tidak dikenali!");
-    }
-  }
-}
-
-// ==========================================
-// LOGIKA KONEKSI WEBSOCKET
+// WEBSOCKET CONNECTION
 // ==========================================
 function toggleConnection() {
   if (isConnected) {
@@ -287,33 +102,26 @@ function toggleConnection() {
 
   localStorage.setItem("rem_ip", ip);
   localStorage.setItem("rem_port", port);
-  localStorage.setItem("rem_pin", pin);
 
   const badge = document.getElementById("statusBadge");
   const btn = document.getElementById("connectBtn");
-  const scanBtn = document.getElementById("scanBtn");
 
   badge.innerText = "● Connecting...";
-  badge.className = "status-badge";
   badge.style.color = "#f59e0b";
 
   let wsUrl = ip.match(/[a-zA-Z]/)
     ? `wss://${ip.replace(/^(https?|wss?):\/\//, "")}`
     : `ws://${ip}:${port}`;
 
-  console.log("Connecting to WebSocket:", wsUrl);
-
   try {
     ws = new WebSocket(wsUrl);
   } catch (err) {
-    console.error("WebSocket constructor error:", err);
     TOAST.error("Gagal membuat koneksi WebSocket: " + err.message);
     resetUI();
     return;
   }
 
   ws.onopen = () => {
-    console.log("WebSocket connected successfully!");
     isConnected = true;
     badge.innerText = "Connected";
     badge.className = "status-badge connected";
@@ -321,46 +129,29 @@ function toggleConnection() {
 
     btn.innerText = "Putuskan Koneksi";
     btn.className = "btn btn-danger";
-    scanBtn.style.display = "none";
 
     document.getElementById("connectionCard").style.display = "none";
+    document.getElementById("mainHeaderCard").style.display = "none";
     document.getElementById("tabBar").style.display = "flex";
     switchTab("macro");
   };
 
   ws.onmessage = (event) => {
-    let data;
     try {
-      data = JSON.parse(event.data);
+      let data = JSON.parse(event.data);
+      handleServerMessage(data);
     } catch (err) {
-      console.warn("Pesan tidak valid dari server:", event.data);
-      return;
+      console.warn("Pesan parse error");
     }
-    handleServerMessage(data);
   };
 
-  ws.onclose = (event) => {
-    console.warn(
-      "WebSocket closed. Code:",
-      event.code,
-      "Reason:",
-      event.reason,
-    );
-    resetUI();
-  };
-
-  ws.onerror = (e) => {
-    console.error("WebSocket error event triggered:", e);
-    TOAST.warning(
-      "Gagal terhubung ke PC! Pastikan IP/Domain benar dan program desktop sudah berjalan.",
-    );
+  ws.onclose = () => resetUI();
+  ws.onerror = () => {
+    TOAST.warning("Gagal terhubung ke PC!");
     resetUI();
   };
 }
 
-// ==========================================
-// PESAN MASUK DARI SERVER (FRAME STREAM, DLL)
-// ==========================================
 function handleServerMessage(data) {
   if (data.type === "frame") {
     const img = document.getElementById("screenImage");
@@ -369,21 +160,25 @@ function handleServerMessage(data) {
     img.classList.add("has-frame");
     if (placeholder) placeholder.style.display = "none";
 
-    if (isStreaming) {
-      const now = performance.now();
-      if (lastFrameTime) {
-        const instFps = 1000 / Math.max(now - lastFrameTime, 1);
-        fpsDisplay = fpsDisplay ? fpsDisplay * 0.8 + instFps * 0.2 : instFps;
-      }
-      lastFrameTime = now;
-      const statusEl = document.getElementById("streamStatus");
-      statusEl.innerText = `Aktif (~${Math.round(fpsDisplay)} fps)`;
-      statusEl.className = "status-badge connected";
+    // Update posisi kursor client jika server mengirimkan koordinat kursor (opsional/ekstraksi jika didukung backend)
+    if (data.cursor_x !== undefined && data.cursor_y !== undefined) {
+      updateClientCursor(data.cursor_x, data.cursor_y);
     }
   } else if (data.type === "stream_error") {
-    TOAST.error(data.message || "Screen streaming gagal diaktifkan.");
+    TOAST.error(data.message || "Screen streaming gagal.");
     stopStreamingUI();
   }
+}
+
+function updateClientCursor(x, y) {
+  const cursor = document.getElementById("clientCursor");
+  const img = document.getElementById("screenImage");
+  if (!cursor || !img) return;
+
+  cursor.style.display = "block";
+  // Asumsi koordinat dinormalisasi atau relatif terhadap ukuran gambar yang tampil
+  cursor.style.left = `${x}px`;
+  cursor.style.top = `${y}px`;
 }
 
 function resetUI() {
@@ -391,7 +186,6 @@ function resetUI() {
   stopHold();
   const badge = document.getElementById("statusBadge");
   const btn = document.getElementById("connectBtn");
-  const scanBtn = document.getElementById("scanBtn");
 
   badge.innerText = "Disconnected";
   badge.className = "status-badge disconnected";
@@ -399,262 +193,117 @@ function resetUI() {
 
   btn.innerText = "Hubungkan PC";
   btn.className = "btn";
-  scanBtn.style.display = "flex";
 
   document.getElementById("connectionCard").style.display = "block";
+  document.getElementById("mainHeaderCard").style.display = "flex";
   document.getElementById("tabBar").style.display = "none";
 
-  isEditMode = false;
-  document.getElementById("macroGrid").classList.remove("edit-mode");
-  document.getElementById("editModeBtn").innerText = "Edit";
-  document.getElementById("editModeBtn").className = "btn btn-secondary";
-
-  stopStreamingUI();
-  const img = document.getElementById("screenImage");
-  const placeholder = document.getElementById("screenPlaceholder");
-  if (img) {
-    img.classList.remove("has-frame");
-    img.src = "";
-  }
-  if (placeholder) placeholder.style.display = "block";
+  exitStreamTab();
 }
 
 // ==========================================
-// FITUR TAB BAR
+// TAB BAR & STREAM AUTOMATION (FULLSCREEN & LANDSCAPE)
 // ==========================================
 function switchTab(tab) {
-  document.querySelectorAll(".tab-panel").forEach((panel) => {
-    panel.style.display = panel.id === `panel-${tab}` ? "block" : "none";
-  });
   document.querySelectorAll(".tab-btn").forEach((b) => {
     b.classList.toggle("active", b.dataset.tab === tab);
   });
 
-  // Hentikan streaming saat pindah keluar dari tab Screen agar hemat bandwidth
-  if (tab !== "screen" && isStreaming) {
-    toggleStream();
+  if (tab === "macro") {
+    document.getElementById("panel-macro").style.display = "block";
+    exitStreamTab();
+  } else if (tab === "stream") {
+    document.getElementById("panel-macro").style.display = "none";
+    enterStreamTab();
   }
 }
 
-// ==========================================
-// LOGIKA HOLD-TO-REPEAT
-// ==========================================
-function startHold(index, event) {
-  if (event) event.preventDefault();
+async function enterStreamTab() {
+  const streamWrapper = document.getElementById("panel-stream");
+  streamWrapper.classList.add("active-stream-mode");
+  document.getElementById("floatingPropBtn").style.display = "flex";
 
-  if (isEditMode) {
-    openEditModal(index);
-    return;
-  }
-
-  executeMacro(index);
-
-  if (holdInterval) clearInterval(holdInterval);
-  holdInterval = setInterval(() => {
-    executeMacro(index);
-  }, 120);
-}
-
-function stopHold() {
-  if (holdInterval) {
-    clearInterval(holdInterval);
-    holdInterval = null;
-  }
-}
-
-function executeMacro(index) {
-  if (!isConnected || !ws) return;
-
-  const btn = macroButtons[index];
-  const pinVal = document.getElementById("pinInput").value.trim() || "";
-  let payload = { pin: pinVal };
-
-  if (btn.type === "shortcut") {
-    payload.type = "shortcut";
-    payload.keys = btn.key
-      .toLowerCase()
-      .split("+")
-      .map((k) => k.trim());
-  } else {
-    payload.type = "press";
-    payload.key = btn.key.toLowerCase().trim();
-  }
-
+  // 1. Trigger Fullscreen Otomatis
   try {
-    ws.send(JSON.stringify(payload));
-    if (navigator.vibrate) navigator.vibrate(20);
-  } catch (err) {
-    console.error("Failed to send WebSocket message:", err);
-  }
-}
-
-// ==========================================
-// RENDER & MANAGEMENT TOMBOL (TAMBAH & EDIT)
-// ==========================================
-function loadMacroButtons() {
-  const saved = localStorage.getItem("rem_macro_pad");
-  if (saved) {
-    try {
-      macroButtons = JSON.parse(saved);
-    } catch (err) {
-      console.error("Error parsing macro buttons:", err);
-      macroButtons = [...DEFAULT_BUTTONS];
+    if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    } else if (document.documentElement.webkitRequestFullscreen) {
+      await document.documentElement.webkitRequestFullscreen();
     }
-  } else {
-    macroButtons = [...DEFAULT_BUTTONS];
+  } catch (e) {
+    console.warn("Fullscreen dibatasi browser:", e);
+  }
+
+  // 2. Ubah Orientasi Layar Android menjadi Landscape Otomatis
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock("landscape");
+    }
+  } catch (e) {
+    console.warn("Screen orientation lock tidak didukung / ditolak:", e);
+  }
+
+  // 3. Mulai Streaming Otomatis
+  if (isConnected && !isStreaming) {
+    isStreaming = true;
+    sendToServer({ type: "stream_start" });
   }
 }
 
-function saveMacroButtons() {
-  localStorage.setItem("rem_macro_pad", JSON.stringify(macroButtons));
-}
+function exitStreamTab() {
+  const streamWrapper = document.getElementById("panel-stream");
+  streamWrapper.classList.remove("active-stream-mode");
+  document.getElementById("floatingPropBtn").style.display = "none";
+  document.getElementById("propertiesPanel").style.display = "none";
 
-function renderButtons() {
-  const grid = document.getElementById("macroGrid");
-  grid.innerHTML = "";
+  // Stop Streaming
+  if (isStreaming) {
+    isStreaming = false;
+    sendToServer({ type: "stream_stop" });
+  }
 
-  macroButtons.forEach((btn, idx) => {
-    const el = document.createElement("div");
-    el.className = `macro-btn ${btn.color}`;
+  // Keluar Fullscreen
+  try {
+    if (document.exitFullscreen && document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+  } catch (e) {}
 
-    el.onmousedown = (e) => startHold(idx, e);
-    el.onmouseup = stopHold;
-    el.onmouseleave = stopHold;
-    el.ontouchstart = (e) => startHold(idx, e);
-    el.ontouchend = stopHold;
-    el.ontouchcancel = stopHold;
+  // Kembalikan Orientasi ke Portrait / Bebas
+  try {
+    if (screen.orientation && screen.orientation.unlock) {
+      screen.orientation.unlock();
+    }
+  } catch (e) {}
 
-    el.innerHTML = `
-                    <span class="edit-badge">Edit</span>
-                    <div class="macro-label">${btn.label}</div>
-                    <div class="macro-sub">${btn.key.toUpperCase()}</div>
-                `;
-    grid.appendChild(el);
+  // Pindahkan balik ke tab macro di UI utama
+  document.getElementById("panel-macro").style.display = "block";
+  document.querySelectorAll(".tab-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === "macro");
   });
 }
 
-function toggleEditMode() {
-  isEditMode = !isEditMode;
-  const grid = document.getElementById("macroGrid");
-  const editBtn = document.getElementById("editModeBtn");
-  if (isEditMode) {
-    grid.classList.add("edit-mode");
-    editBtn.innerText = "Selesai";
-    editBtn.className = "btn btn-success";
-  } else {
-    grid.classList.remove("edit-mode");
-    editBtn.innerText = "Edit";
-    editBtn.className = "btn btn-secondary";
-  }
-}
-
-function openAddModal() {
-  document.getElementById("modalTitle").innerText = "Buat Tombol Macro Baru";
-  document.getElementById("editIndex").value = "-1";
-  document.getElementById("mLabel").value = "";
-  document.getElementById("mType").value = "press";
-  document.getElementById("mKey").value = "";
-  document.getElementById("mColor").value = "theme-blue";
-
-  document.getElementById("modalActionButtons").innerHTML = `
-                <button class="btn btn-secondary" onclick="closeMacroModal()">Batal</button>
-                <button class="btn btn-success" onclick="saveMacroButton()">Simpan</button>
-            `;
-  document.getElementById("macroModal").style.display = "flex";
-}
-
-function openEditModal(index) {
-  const btn = macroButtons[index];
-  document.getElementById("modalTitle").innerText = "Edit Tombol Macro";
-  document.getElementById("editIndex").value = index;
-  document.getElementById("mLabel").value = btn.label;
-  document.getElementById("mType").value = btn.type;
-  document.getElementById("mKey").value = btn.key;
-  document.getElementById("mColor").value = btn.color;
-
-  document.getElementById("modalActionButtons").innerHTML = `
-                <button class="btn btn-danger" onclick="deleteMacroButton(${index})">Hapus</button>
-                <button class="btn btn-secondary" onclick="closeMacroModal()">Batal</button>
-                <button class="btn btn-success" onclick="saveMacroButton()">Perbarui</button>
-            `;
-  document.getElementById("macroModal").style.display = "flex";
-}
-
-function closeMacroModal() {
-  document.getElementById("macroModal").style.display = "none";
-}
-
-function saveMacroButton() {
-  const index = parseInt(document.getElementById("editIndex").value);
-  const label = document.getElementById("mLabel").value.trim();
-  const type = document.getElementById("mType").value;
-  const key = document.getElementById("mKey").value.trim();
-  const color = document.getElementById("mColor").value;
-
-  if (!label || !key) {
-    TOAST.info("Nama label dan tombol keyboard wajib diisi!");
-    return;
-  }
-
-  if (index === -1) {
-    macroButtons.push({ label, type, key, color });
-  } else {
-    macroButtons[index] = { label, type, key, color };
-  }
-
-  saveMacroButtons();
-  renderButtons();
-  closeMacroModal();
-}
-
-function deleteMacroButton(index) {
-  Swal.fire({
-    icon: "warning",
-    title: `Hapus tombol "${macroButtons[index].label}"?`,
-    text: "Tindakan ini tidak dapat dibatalkan.",
-    showCancelButton: true,
-    confirmButtonText: "Ya, Hapus",
-    cancelButtonText: "Batal",
-    buttonsStyling: false, // Wajib false agar menggunakan custom class CSS kita
-    customClass: {
-      confirmButton: "swal2-confirm swal2-deny", // Pakai style tombol merah
-      cancelButton: "swal2-cancel",
-    },
-  }).then((result) => {
-    if (result.isConfirmed) {
-      macroButtons.splice(index, 1);
-      saveMacroButtons();
-      renderButtons();
-      closeMacroModal();
-    }
-  });
+function togglePropertiesPanel() {
+  const panel = document.getElementById("propertiesPanel");
+  panel.style.display = panel.style.display === "flex" ? "none" : "flex";
 }
 
 // ==========================================
-// HELPER: KIRIM PAYLOAD KE SERVER
+// TRACKPAD / TOUCH PAD DALAM STREAM VIEW
 // ==========================================
-function sendToServer(payload) {
-  if (!isConnected || !ws) return;
-  const pinVal = document.getElementById("pinInput").value.trim() || "";
-  payload.pin = pinVal;
-  try {
-    ws.send(JSON.stringify(payload));
-  } catch (err) {
-    console.error("Gagal mengirim data ke server:", err);
-  }
-}
-
-// ==========================================
-// FITUR TRACKPAD MOUSE
-// ==========================================
-function setupTrackpad() {
-  const pad = document.getElementById("trackpadArea");
+function setupStreamTouchpad() {
+  const pad = document.getElementById("streamTouchArea");
   if (!pad) return;
 
-  // Touch (Android/mobile)
   pad.addEventListener(
     "touchstart",
     (e) => {
+      // Abaikan jika menyentuh tombol floating / panel properties
+      if (
+        e.target.closest("#propertiesPanel") ||
+        e.target.closest("#floatingPropBtn")
+      )
+        return;
       const t = e.touches[0];
       dragLastX = t.clientX;
       dragLastY = t.clientY;
@@ -666,51 +315,24 @@ function setupTrackpad() {
   pad.addEventListener(
     "touchmove",
     (e) => {
+      if (dragLastX === null) return;
       const t = e.touches[0];
       handleTrackpadMove(t.clientX, t.clientY);
     },
     { passive: true },
   );
 
-  pad.addEventListener("touchend", () => {
+  pad.addEventListener("touchend", (e) => {
+    if (
+      e.target.closest("#propertiesPanel") ||
+      e.target.closest("#floatingPropBtn")
+    )
+      return;
     handleTrackpadRelease();
   });
-
-  // Mouse (buat testing di browser desktop)
-  let mouseDown = false;
-  pad.addEventListener("mousedown", (e) => {
-    mouseDown = true;
-    dragLastX = e.clientX;
-    dragLastY = e.clientY;
-    dragMoved = 0;
-  });
-  pad.addEventListener("mousemove", (e) => {
-    if (!mouseDown) return;
-    handleTrackpadMove(e.clientX, e.clientY);
-  });
-  window.addEventListener("mouseup", () => {
-    if (!mouseDown) return;
-    mouseDown = false;
-    handleTrackpadRelease();
-  });
-
-  // Scroll dengan mouse wheel (testing di browser)
-  pad.addEventListener(
-    "wheel",
-    (e) => {
-      e.preventDefault();
-      sendMouseScroll(e.deltaY > 0 ? -1 : 1);
-    },
-    { passive: false },
-  );
 }
 
 function handleTrackpadMove(clientX, clientY) {
-  if (dragLastX === null) {
-    dragLastX = clientX;
-    dragLastY = clientY;
-    return;
-  }
   const dx = clientX - dragLastX;
   const dy = clientY - dragLastY;
   dragLastX = clientX;
@@ -751,44 +373,178 @@ function onSensitivityChange(value) {
 }
 
 // ==========================================
-// FITUR SCREEN STREAMING
+// MACRO PAD LOGIC (TETAP SAMA)
 // ==========================================
-function toggleStream() {
-  if (!isConnected) {
-    TOAST.info("Hubungkan ke PC terlebih dahulu!");
+function startHold(index, event) {
+  if (event) event.preventDefault();
+  if (isEditMode) {
+    openEditModal(index);
     return;
   }
+  executeMacro(index);
+  if (holdInterval) clearInterval(holdInterval);
+  holdInterval = setInterval(() => executeMacro(index), 120);
+}
 
-  const btn = document.getElementById("streamToggleBtn");
-  const statusEl = document.getElementById("streamStatus");
-
-  if (!isStreaming) {
-    isStreaming = true;
-    lastFrameTime = 0;
-    fpsDisplay = 0;
-    sendToServer({ type: "stream_start" });
-    btn.innerText = "Stop Streaming";
-    btn.className = "btn btn-danger";
-    statusEl.innerText = "Menyambung...";
-    statusEl.className = "status-badge";
-    statusEl.style.color = "#f59e0b";
-  } else {
-    stopStreamingUI();
-    sendToServer({ type: "stream_stop" });
+function stopHold() {
+  if (holdInterval) {
+    clearInterval(holdInterval);
+    holdInterval = null;
   }
 }
 
-function stopStreamingUI() {
-  isStreaming = false;
-  const btn = document.getElementById("streamToggleBtn");
-  const statusEl = document.getElementById("streamStatus");
-  if (btn) {
-    btn.innerText = "Mulai Streaming";
-    btn.className = "btn btn-success";
+function executeMacro(index) {
+  if (!isConnected || !ws) return;
+  const btn = macroButtons[index];
+  const pinVal = document.getElementById("pinInput").value.trim() || "";
+  let payload = { pin: pinVal };
+
+  if (btn.type === "shortcut") {
+    payload.type = "shortcut";
+    payload.keys = btn.key
+      .toLowerCase()
+      .split("+")
+      .map((k) => k.trim());
+  } else {
+    payload.type = "press";
+    payload.key = btn.key.toLowerCase().trim();
   }
-  if (statusEl) {
-    statusEl.innerText = "Nonaktif";
-    statusEl.className = "status-badge disconnected";
-    statusEl.style.color = "";
+
+  try {
+    ws.send(JSON.stringify(payload));
+    if (navigator.vibrate) navigator.vibrate(20);
+  } catch (err) {}
+}
+
+function loadMacroButtons() {
+  const saved = localStorage.getItem("rem_macro_pad");
+  macroButtons = saved ? JSON.parse(saved) : [];
+}
+
+function saveMacroButtons() {
+  localStorage.setItem("rem_macro_pad", JSON.stringify(macroButtons));
+}
+
+function renderButtons() {
+  const grid = document.getElementById("macroGrid");
+  grid.innerHTML = "";
+
+  macroButtons.forEach((btn, idx) => {
+    const el = document.createElement("div");
+    el.className = `macro-btn ${btn.color}`;
+    el.onmousedown = (e) => startHold(idx, e);
+    el.onmouseup = stopHold;
+    el.onmouseleave = stopHold;
+    el.ontouchstart = (e) => startHold(idx, e);
+    el.ontouchend = stopHold;
+    el.ontouchcancel = stopHold;
+
+    el.innerHTML = `
+      <span class="edit-badge">Edit</span>
+      <div class="macro-label">${btn.label}</div>
+      <div class="macro-sub">${btn.key.toUpperCase()}</div>
+    `;
+    grid.appendChild(el);
+  });
+}
+
+function toggleEditMode() {
+  isEditMode = !isEditMode;
+  const grid = document.getElementById("macroGrid");
+  const editBtn = document.getElementById("editModeBtn");
+  if (isEditMode) {
+    grid.classList.add("edit-mode");
+    editBtn.innerText = "Selesai";
+    editBtn.className = "btn btn-success";
+  } else {
+    grid.classList.remove("edit-mode");
+    editBtn.innerText = "Edit";
+    editBtn.className = "btn btn-secondary";
   }
+}
+
+function openAddModal() {
+  document.getElementById("modalTitle").innerText = "Buat Tombol Macro Baru";
+  document.getElementById("editIndex").value = "-1";
+  document.getElementById("mLabel").value = "";
+  document.getElementById("mKey").value = "";
+  document.getElementById("macroModal").style.display = "flex";
+}
+
+function openEditModal(index) {
+  const btn = macroButtons[index];
+  document.getElementById("modalTitle").innerText = "Edit Tombol Macro";
+  document.getElementById("editIndex").value = index;
+  document.getElementById("mLabel").value = btn.label;
+  document.getElementById("mType").value = btn.type;
+  document.getElementById("mKey").value = btn.key;
+  document.getElementById("mColor").value = btn.color;
+  document.getElementById("macroModal").style.display = "flex";
+}
+
+function closeMacroModal() {
+  document.getElementById("macroModal").style.display = "none";
+}
+
+function saveMacroButton() {
+  const index = parseInt(document.getElementById("editIndex").value);
+  const label = document.getElementById("mLabel").value.trim();
+  const type = document.getElementById("mType").value;
+  const key = document.getElementById("mKey").value.trim();
+  const color = document.getElementById("mColor").value;
+
+  if (!label || !key) {
+    TOAST.info("Nama label dan tombol keyboard wajib diisi!");
+    return;
+  }
+
+  if (index === -1) {
+    macroButtons.push({ label, type, key, color });
+  } else {
+    macroButtons[index] = { label, type, key, color };
+  }
+
+  saveMacroButtons();
+  renderButtons();
+  closeMacroModal();
+}
+
+function sendToServer(payload) {
+  if (!isConnected || !ws) return;
+  payload.pin = document.getElementById("pinInput").value.trim() || "";
+  try {
+    ws.send(JSON.stringify(payload));
+  } catch (err) {}
+}
+
+function openQrScanner() {
+  if (isConnected) {
+    TOAST.info("Putuskan koneksi terlebih dahulu sebelum scan QR!");
+    return;
+  }
+  document.getElementById("qrModal").style.display = "flex";
+  html5QrcodeScanner = new Html5Qrcode("qrReader");
+  html5QrcodeScanner
+    .start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+      closeQrScanner();
+      try {
+        let data = JSON.parse(text);
+        if (data.ip) document.getElementById("ipInput").value = data.ip;
+        if (data.port) document.getElementById("portInput").value = data.port;
+        toggleConnection();
+      } catch (e) {
+        let parts = text.split(":");
+        if (parts.length >= 2) {
+          document.getElementById("ipInput").value = parts[0];
+          document.getElementById("portInput").value = parts[1];
+          toggleConnection();
+        }
+      }
+    })
+    .catch(() => closeQrScanner());
+}
+
+function closeQrScanner() {
+  document.getElementById("qrModal").style.display = "none";
+  if (html5QrcodeScanner) html5QrcodeScanner.stop().catch(() => {});
 }
