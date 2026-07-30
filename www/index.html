@@ -46,6 +46,23 @@
         max-width: 500px;
         margin: 0 auto;
         min-height: 100vh;
+        padding-bottom: 70px;
+      }
+
+      /* --- PULL TO REFRESH INDICATOR --- */
+      #ptrIndicator {
+        text-align: center;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-sub);
+        height: 0;
+        overflow: hidden;
+        transition: height 0.2s ease;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 10px;
       }
 
       /* --- CARD & CONTAINERS --- */
@@ -309,9 +326,71 @@
         overflow: hidden;
         margin-bottom: 15px;
       }
+
+      /* --- DEBUG CONSOLE PANEL --- */
+      #debugConsole {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: rgba(15, 23, 42, 0.95);
+        border-top: 2px solid var(--accent);
+        max-height: 200px;
+        display: none;
+        flex-direction: column;
+        z-index: 999;
+        font-family: monospace;
+        font-size: 11px;
+      }
+      .debug-header {
+        background: #1e293b;
+        padding: 5px 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #334155;
+      }
+      .debug-body {
+        padding: 8px;
+        overflow-y: auto;
+        max-height: 150px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        text-align: left;
+      }
+      .log-item {
+        word-break: break-all;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding-bottom: 2px;
+      }
+      .log-error { color: var(--danger); }
+      .log-info { color: #38bdf8; }
+      .log-success { color: var(--success); }
+
+      #toggleDebugBtn {
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        background: #475569;
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 6px 12px;
+        font-size: 11px;
+        z-index: 1000;
+        opacity: 0.7;
+        cursor: pointer;
+      }
     </style>
   </head>
   <body>
+
+    <!-- PULL TO REFRESH INDIKATOR -->
+    <div id="ptrIndicator">
+      <span id="ptrText">🔄 Tarik ke bawah untuk memperbarui...</span>
+    </div>
+
     <!-- 1. HEADER & STATUS -->
     <div class="card header">
       <div class="title">Pramaxx Remote Keyboard</div>
@@ -473,7 +552,116 @@
       </div>
     </div>
 
+    <!-- FLOATING DEBUG CONSOLE -->
+    <button id="toggleDebugBtn" onclick="toggleDebugConsole()">🐛 Log</button>
+    <div id="debugConsole">
+      <div class="debug-header">
+        <span>Console Debugger</span>
+        <div style="display: flex; gap: 5px;">
+          <button onclick="clearDebugLogs()" style="background:#ef4444; border:none; color:white; padding:2px 6px; border-radius:4px; font-size:10px;">Clear</button>
+          <button onclick="toggleDebugConsole()" style="background:#475569; border:none; color:white; padding:2px 6px; border-radius:4px; font-size:10px;">X</button>
+        </div>
+      </div>
+      <div class="debug-body" id="debugLogBody"></div>
+    </div>
+
     <script>
+      // ==========================================
+      // FITUR PULL TO REFRESH
+      // ==========================================
+      let touchStartY = 0;
+      let isPulling = false;
+      const ptrIndicator = document.getElementById("ptrIndicator");
+      const ptrText = document.getElementById("ptrText");
+
+      window.addEventListener("touchstart", (e) => {
+        if (window.scrollY === 0) {
+          touchStartY = e.touches[0].clientY;
+          isPulling = true;
+        }
+      }, { passive: true });
+
+      window.addEventListener("touchmove", (e) => {
+        if (!isPulling) return;
+        const currentY = e.touches[0].clientY;
+        const diff = currentY - touchStartY;
+
+        if (diff > 0 && window.scrollY === 0) {
+          const pullDistance = Math.min(diff * 0.4, 70); 
+          ptrIndicator.style.height = `${pullDistance}px`;
+          if (pullDistance > 45) {
+            ptrText.innerText = "release Lepaskan untuk memperbarui...";
+          } else {
+            ptrText.innerText = "🔄 Tarik ke bawah untuk memperbarui...";
+          }
+        } else {
+          isPulling = false;
+          ptrIndicator.style.height = "0px";
+        }
+      }, { passive: true });
+
+      window.addEventListener("touchend", () => {
+        if (!isPulling) return;
+        isPulling = false;
+        const currentHeight = parseInt(ptrIndicator.style.height || "0");
+        if (currentHeight > 45) {
+          ptrText.innerText = "Memuat ulang...";
+          ptrIndicator.style.height = "40px";
+          setTimeout(() => {
+            window.location.reload();
+          }, 400);
+        } else {
+          ptrIndicator.style.height = "0px";
+        }
+      });
+
+      // ==========================================
+      // OVERRIDE CONSOLE UNTUK DEBUGGING DI APK
+      // ==========================================
+      (function () {
+        const logBody = document.getElementById("debugLogBody");
+        function appendLog(type, args) {
+          if (!logBody) return;
+          const div = document.createElement("div");
+          div.className = `log-item log-${type}`;
+          const time = new Date().toLocaleTimeString();
+          let msg = args.map(arg => (typeof arg === "object" ? JSON.stringify(arg) : arg)).join(" ");
+          div.innerText = `[${time}] ${msg}`;
+          logBody.appendChild(div);
+          logBody.scrollTop = logBody.scrollHeight;
+        }
+
+        const origLog = console.log;
+        const origErr = console.error;
+        const origWarn = console.warn;
+
+        console.log = function (...args) {
+          origLog.apply(console, args);
+          appendLog("info", args);
+        };
+        console.error = function (...args) {
+          origErr.apply(console, args);
+          appendLog("error", args);
+        };
+        console.warn = function (...args) {
+          origWarn.apply(console, args);
+          appendLog("info", args);
+        };
+
+        window.onerror = function (msg, url, line) {
+          appendLog("error", [`Uncaught: ${msg} (${line})`]);
+        };
+      })();
+
+      function toggleDebugConsole() {
+        const consoleEl = document.getElementById("debugConsole");
+        consoleEl.style.display = consoleEl.style.display === "flex" ? "none" : "flex";
+      }
+
+      function clearDebugLogs() {
+        document.getElementById("debugLogBody").innerHTML = "";
+      }
+
       let ws = null;
       let isConnected = false;
       let isEditMode = false;
@@ -487,6 +675,7 @@
       let macroButtons = [];
 
       window.onload = () => {
+        console.log("App loaded successfully.");
         if (localStorage.getItem("rem_ip"))
           document.getElementById("ipInput").value =
             localStorage.getItem("rem_ip");
@@ -518,6 +707,7 @@
         html5QrcodeScanner
           .start({ facingMode: "environment" }, config, onScanSuccess)
           .catch((err) => {
+            console.error("Camera error:", err);
             alert("Gagal mengakses kamera. Pastikan izin kamera aktif!");
             closeQrScanner();
           });
@@ -531,6 +721,7 @@
       }
 
       function onScanSuccess(decodedText) {
+        console.log("QR Scanned:", decodedText);
         closeQrScanner();
 
         try {
@@ -588,9 +779,19 @@
           ? `wss://${ip.replace(/^(https?|wss?):\/\//, "")}`
           : `ws://${ip}:${port}`;
 
-        ws = new WebSocket(wsUrl);
+        console.log("Connecting to WebSocket:", wsUrl);
+
+        try {
+          ws = new WebSocket(wsUrl);
+        } catch (err) {
+          console.error("WebSocket constructor error:", err);
+          alert("Gagal membuat koneksi WebSocket: " + err.message);
+          resetUI();
+          return;
+        }
 
         ws.onopen = () => {
+          console.log("WebSocket connected successfully!");
           isConnected = true;
           badge.innerText = "Connected";
           badge.className = "status-badge connected";
@@ -600,12 +801,16 @@
           btn.className = "btn btn-danger";
           scanBtn.style.display = "none";
 
-          // Sembunyikan section pengaturan saat berhasil terhubung
           document.getElementById("connectionCard").style.display = "none";
         };
 
-        ws.onclose = resetUI;
+        ws.onclose = (event) => {
+          console.warn("WebSocket closed. Code:", event.code, "Reason:", event.reason);
+          resetUI();
+        };
+
         ws.onerror = (e) => {
+          console.error("WebSocket error event triggered:", e);
           alert(
             "Gagal terhubung ke PC! Pastikan IP/Domain benar dan program desktop sudah berjalan.",
           );
@@ -628,7 +833,6 @@
         btn.className = "btn";
         scanBtn.style.display = "flex";
 
-        // Munculkan kembali section pengaturan saat terputus
         document.getElementById("connectionCard").style.display = "block";
 
         isEditMode = false;
@@ -643,7 +847,6 @@
       function startHold(index, event) {
         if (event) event.preventDefault();
 
-        // Jika dalam mode edit, klik tombol akan membuka modal edit tombol tersebut
         if (isEditMode) {
           openEditModal(index);
           return;
@@ -682,8 +885,12 @@
           payload.key = btn.key.toLowerCase().trim();
         }
 
-        ws.send(JSON.stringify(payload));
-        if (navigator.vibrate) navigator.vibrate(20);
+        try {
+          ws.send(JSON.stringify(payload));
+          if (navigator.vibrate) navigator.vibrate(20);
+        } catch (err) {
+          console.error("Failed to send WebSocket message:", err);
+        }
       }
 
       // ==========================================
@@ -694,7 +901,8 @@
         if (saved) {
           try {
             macroButtons = JSON.parse(saved);
-          } catch {
+          } catch (err) {
+            console.error("Error parsing macro buttons:", err);
             macroButtons = [...DEFAULT_BUTTONS];
           }
         } else {
@@ -754,7 +962,6 @@
         document.getElementById("mKey").value = "";
         document.getElementById("mColor").value = "theme-blue";
 
-        // Tombol modal untuk penambahan baru (Batal & Simpan)
         document.getElementById("modalActionButtons").innerHTML = `
                 <button class="btn btn-secondary" onclick="closeMacroModal()">Batal</button>
                 <button class="btn btn-success" onclick="saveMacroButton()">Simpan</button>
@@ -771,7 +978,6 @@
         document.getElementById("mKey").value = btn.key;
         document.getElementById("mColor").value = btn.color;
 
-        // Tombol modal untuk pengeditan (Dilengkapi tombol Hapus & Perbarui)
         document.getElementById("modalActionButtons").innerHTML = `
                 <button class="btn btn-danger" onclick="deleteMacroButton(${index})">Hapus</button>
                 <button class="btn btn-secondary" onclick="closeMacroModal()">Batal</button>
