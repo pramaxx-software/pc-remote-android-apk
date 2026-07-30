@@ -32,10 +32,10 @@ jobs:
           VERSION="v1.0.${{ github.run_number }}"
           echo "tag=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create Frontend Bundle ZIP (OTA)
+      - name: Create Frontend Bundle ZIP
         run: |
-          # Zip folder www (pastikan folder www berisi file web app lo)
-          zip -r frontend-bundle.zip www/
+          cd www
+          zip -r ../frontend-bundle.zip .
           echo "ZIP bundle created successfully for version ${{ steps.version.outputs.tag }}"
 
       - name: Upload OTA Bundle to Laravel Server
