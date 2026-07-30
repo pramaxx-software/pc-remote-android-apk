@@ -279,27 +279,18 @@ function togglePropertiesPanel() {
 // ==========================================
 // TRACKPAD / TOUCH PAD DALAM STREAM VIEW
 // ==========================================
-function setupStreamTouchpad() {
-  const pad = document.getElementById("streamTouchArea");
-  const img = document.getElementById("screenImage");
 
-  if (!pad || !img) return;
+function setupStreamTouchpad() {
+  const pad = document.getElementById("floatingTrackpad");
+  if (!pad) return;
 
   pad.addEventListener(
     "touchstart",
     (e) => {
-      if (
-        e.target.closest("#propertiesPanel") ||
-        e.target.closest("#floatingPropBtn")
-      )
-        return;
-
       const t = e.touches[0];
       dragLastX = t.clientX;
       dragLastY = t.clientY;
       dragMoved = 0;
-
-      handleAbsolutePosition(t.clientX, t.clientY, img);
     },
     { passive: true },
   );
@@ -312,24 +303,25 @@ function setupStreamTouchpad() {
 
       const dx = t.clientX - dragLastX;
       const dy = t.clientY - dragLastY;
-      dragMoved += Math.abs(dx) + Math.abs(dy);
 
       dragLastX = t.clientX;
       dragLastY = t.clientY;
 
-      handleAbsolutePosition(t.clientX, t.clientY, img);
+      dragMoved += Math.abs(dx) + Math.abs(dy);
+
+      if (dx || dy) {
+        sendToServer({
+          type: "mouse_move",
+          dx: dx * mouseSensitivity,
+          dy: dy * mouseSensitivity,
+        });
+      }
     },
     { passive: true },
   );
 
-  pad.addEventListener("touchend", (e) => {
-    if (
-      e.target.closest("#propertiesPanel") ||
-      e.target.closest("#floatingPropBtn")
-    )
-      return;
-
-    // Jika jari nyaris tidak bergeser, anggap sebagai klik kiri
+  pad.addEventListener("touchend", () => {
+    // Jika tap singkat di trackpad, anggap sebagai klik kiri
     if (dragMoved < 4) {
       sendMouseClick("left");
     }
@@ -337,6 +329,21 @@ function setupStreamTouchpad() {
     dragLastY = null;
     dragMoved = 0;
   });
+}
+
+function sendMouseClick(button, double) {
+  sendToServer({ type: "mouse_click", button: button, double: !!double });
+  if (navigator.vibrate) navigator.vibrate(15);
+}
+
+function sendMouseScroll(direction) {
+  sendToServer({ type: "mouse_scroll", dx: 0, dy: direction * 40 }); // Diperhalus scroll-nya
+}
+
+function onSensitivityChange(value) {
+  mouseSensitivity = parseFloat(value);
+  document.getElementById("sensValue").innerText = `${mouseSensitivity}x`;
+  localStorage.setItem("rem_sensitivity", mouseSensitivity);
 }
 
 function handleAbsolutePosition(clientX, clientY, image) {
@@ -370,21 +377,6 @@ function handleAbsolutePosition(clientX, clientY, image) {
     percentX: percentX,
     percentY: percentY,
   });
-}
-
-function sendMouseClick(button, double) {
-  sendToServer({ type: "mouse_click", button: button, double: !!double });
-  if (navigator.vibrate) navigator.vibrate(15);
-}
-
-function sendMouseScroll(direction) {
-  sendToServer({ type: "mouse_scroll", dx: 0, dy: direction });
-}
-
-function onSensitivityChange(value) {
-  mouseSensitivity = parseFloat(value);
-  document.getElementById("sensValue").innerText = `${mouseSensitivity}x`;
-  localStorage.setItem("rem_sensitivity", mouseSensitivity);
 }
 
 // ==========================================
