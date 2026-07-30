@@ -368,25 +368,37 @@ function setupStreamTouchpad() {
 }
 
 function handleAbsolutePosition(clientX, clientY, container, image) {
-  // 1. Dapatkan posisi container dan gambar yang sudah di scale (object-fit: contain)
+  // Pastikan gambar sudah dimuat
+  if (!image.naturalWidth) return;
+
   const rect = image.getBoundingClientRect();
 
-  // 2. Hitung posisi sentuhan relatif terhadap pojok kiri atas *gambar* yang sedang tampil
-  let x = clientX - rect.left;
-  let y = clientY - rect.top;
+  // 1. Hitung skala dan ukuran asli gambar yang sedang tampil (telah di-scale)
+  const scale = Math.min(
+    rect.width / image.naturalWidth,
+    rect.height / image.naturalHeight,
+  );
+  const renderedWidth = image.naturalWidth * scale;
+  const renderedHeight = image.naturalHeight * scale;
 
-  // 3. Batasi agar koordinat tidak keluar dari batas gambar
-  x = Math.max(0, Math.min(x, rect.width));
-  y = Math.max(0, Math.min(y, rect.height));
+  // 2. Hitung offset (jarak area "black bars" di sisi layar)
+  const offsetX = rect.left + (rect.width - renderedWidth) / 2;
+  const offsetY = rect.top + (rect.height - renderedHeight) / 2;
 
-  // 4. Update kursor lokal (visual feedback untuk user)
-  // Ingat, container kita (pad) memiliki posisi yang berbeda, jadi kita kembalikan ke clientX/Y
+  // 3. Cari koordinat jari tepat di atas gambar asli
+  let x = clientX - offsetX;
+  let y = clientY - offsetY;
+
+  // Batasi agar kursor tidak keluar dari frame gambar
+  x = Math.max(0, Math.min(x, renderedWidth));
+  y = Math.max(0, Math.min(y, renderedHeight));
+
+  // 4. Update kursor biru lokal di layar HP
   updateClientCursor(clientX, clientY);
 
-  // 5. Kirim data persentase posisi mouse ke server
-  // (Mengapa persentase? Agar server bisa mengkalibrasikan posisinya di layar PC berapapun resolusinya)
-  const percentX = x / rect.width;
-  const percentY = y / rect.height;
+  // 5. Ubah jadi persentase agar PC bisa mengonversinya ke resolusi aslinya
+  const percentX = x / renderedWidth;
+  const percentY = y / renderedHeight;
 
   sendToServer({
     type: "mouse_position_percent",
