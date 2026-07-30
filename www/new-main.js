@@ -43,6 +43,60 @@ const TOAST = {
   info: (title) => TOAST.init("info", title),
 };
 
+let touchStartY = 0;
+let isPulling = false;
+const ptrIndicator = document.getElementById("ptrIndicator");
+const ptrText = document.getElementById("ptrText");
+
+window.addEventListener(
+  "touchstart",
+  (e) => {
+    if (window.scrollY === 0) {
+      touchStartY = e.touches[0].clientY;
+      isPulling = true;
+    }
+  },
+  { passive: true },
+);
+
+window.addEventListener(
+  "touchmove",
+  (e) => {
+    if (!isPulling) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY;
+
+    if (diff > 0 && window.scrollY === 0) {
+      const pullDistance = Math.min(diff * 0.4, 70);
+      ptrIndicator.style.height = `${pullDistance}px`;
+      if (pullDistance > 45) {
+        ptrText.innerText = "release Lepaskan untuk memperbarui...";
+      } else {
+        ptrText.innerText = "Tarik ke bawah untuk memperbarui...";
+      }
+    } else {
+      isPulling = false;
+      ptrIndicator.style.height = "0px";
+    }
+  },
+  { passive: true },
+);
+
+window.addEventListener("touchend", () => {
+  if (!isPulling) return;
+  isPulling = false;
+  const currentHeight = parseInt(ptrIndicator.style.height || "0");
+  if (currentHeight > 45) {
+    ptrText.innerText = "Memuat ulang...";
+    ptrIndicator.style.height = "40px";
+    setTimeout(() => {
+      window.location.reload();
+    }, 400);
+  } else {
+    ptrIndicator.style.height = "0px";
+  }
+});
+
 // ==========================================
 // STATE & VARIABLES
 // ==========================================
