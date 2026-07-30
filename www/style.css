@@ -1,0 +1,502 @@
+:root {
+  --bg-main: #0f172a;
+  --bg-card: #1e293b;
+  --bg-input: #334155;
+  --accent: #3b82f6;
+  --success: #10b981;
+  --danger: #ef4444;
+  --text-main: #f8fafc;
+  --text-sub: #94a3b8;
+}
+
+::-webkit-inner-spin-button {
+  display: none;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  padding: 15px;
+  padding-top: max(15px, env(safe-area-inset-top));
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-width: 500px;
+  margin: 0 auto;
+  min-height: 100vh;
+  padding-bottom: 70px;
+}
+
+/* --- PULL TO REFRESH INDICATOR --- */
+#ptrIndicator {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-sub);
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(30, 41, 59, 0.5);
+  border-radius: 10px;
+}
+
+/* --- CARD & CONTAINERS --- */
+.card {
+  background-color: var(--bg-card);
+  border-radius: 16px;
+  padding: 15px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffa806;
+}
+
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 20px;
+  background-color: var(--bg-input);
+  color: var(--text-sub);
+}
+
+.status-badge.connected {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+.status-badge.disconnected {
+  background-color: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+/* --- FORM INPUTS & RESPONSIVE GRID --- */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+label {
+  font-size: 11px;
+  color: var(--text-sub);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+input,
+select {
+  background-color: var(--bg-input);
+  border: 1px solid #475569;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: white;
+  font-size: 14px;
+  outline: none;
+  user-select: text;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+.btn {
+  background-color: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 0.1s, opacity 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-danger {
+  background-color: var(--danger);
+}
+.btn-success {
+  background-color: var(--success);
+}
+.btn-secondary {
+  background-color: #475569;
+}
+
+.action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+/* --- MACRO PAD GRID (STREAM DECK STYLE) --- */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-sub);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.macro-btn {
+  aspect-ratio: 1 / 0.85;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  transition: all 0.08s;
+  touch-action: manipulation;
+}
+
+.macro-btn:active {
+  transform: translateY(4px);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.macro-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+  pointer-events: none;
+}
+.macro-sub {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: monospace;
+  pointer-events: none;
+}
+
+.edit-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #93c5fd;
+  padding: 2px 6px;
+  border-radius: 10px;
+  display: none;
+}
+
+.edit-mode .edit-badge {
+  display: block;
+}
+.edit-mode .macro-btn {
+  animation: shake 0.3s infinite alternate;
+  border-color: var(--accent);
+}
+
+@keyframes shake {
+  from {
+    transform: rotate(-1deg);
+  }
+  to {
+    transform: rotate(1deg);
+  }
+}
+
+.theme-blue {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+.theme-red {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+.theme-green {
+  background: linear-gradient(135deg, #059669, #047857);
+}
+.theme-purple {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+}
+.theme-yellow {
+  background: linear-gradient(135deg, #d97706, #b45309);
+}
+.theme-dark {
+  background: linear-gradient(135deg, #334155, #1e293b);
+}
+
+/* --- MODAL TAMBAH/EDIT & QR --- */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 99;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal-content {
+  background: var(--bg-card);
+  width: 100%;
+  max-width: 400px;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid #475569;
+}
+
+/* Khusus Container Scanner */
+#qrReader {
+  width: 100%;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+/* --- DEBUG CONSOLE PANEL --- */
+#debugConsole {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(15, 23, 42, 0.95);
+  border-top: 2px solid var(--accent);
+  max-height: 200px;
+  display: none;
+  flex-direction: column;
+  z-index: 999;
+  font-family: monospace;
+  font-size: 11px;
+}
+.debug-header {
+  background: #1e293b;
+  padding: 5px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #334155;
+}
+.debug-body {
+  padding: 8px;
+  overflow-y: auto;
+  max-height: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+.log-item {
+  word-break: break-all;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 2px;
+}
+.log-error {
+  color: var(--danger);
+}
+.log-info {
+  color: #38bdf8;
+}
+.log-success {
+  color: var(--success);
+}
+
+#toggleDebugBtn {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background: #475569;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 11px;
+  z-index: 1000;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+/* --- CUSTOM SWEETALERT2 DARK THEME --- */
+.swal2-popup {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  width: 90% !important;
+  max-width: 380px !important;
+  padding: 20px !important;
+}
+
+.swal2-title {
+  color: #f8fafc !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+}
+
+.swal2-html-container {
+  color: #94a3b8 !important;
+  font-size: 14px !important;
+}
+
+/* Input di dalam SweetAlert (jika pakai swal.fire dengan input) */
+.swal2-input,
+.swal2-textarea {
+  background-color: #334155 !important;
+  color: white !important;
+  border: 1px solid #475569 !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  box-shadow: none !important;
+}
+
+.swal2-input:focus,
+.swal2-textarea:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Tombol Aksi */
+.swal2-actions {
+  gap: 10px !important;
+  margin-top: 15px !important;
+}
+
+.swal2-confirm {
+  background-color: #3b82f6 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 10px 20px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.swal2-deny {
+  background-color: #ef4444 !important;
+  color: white !important;
+  border-radius: 10px !important;
+  font-weight: 600 !important;
+}
+
+.swal2-cancel {
+  background-color: #475569 !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 10px !important;
+  padding: 10px 20px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+/* Icon (Success, Warning, Error, dll) */
+.swal2-icon.swal2-success {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+.swal2-icon.swal2-error {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+.swal2-icon.swal2-warning {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+}
+
+/* --- CUSTOM SWEETALERT2 TOAST DARK THEME --- */
+.swal2-container {
+  padding: 10px !important;
+}
+
+.swal2-container .swal2-popup {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+  padding: 10px 15px !important;
+  width: auto !important;
+  max-width: 350px !important;
+}
+
+.swal2-container .swal2-title {
+  font-size: 13px !important;
+  color: #f8fafc !important;
+  margin: 0 0 0 10px !important;
+  font-weight: 600 !important;
+}
+
+.swal2-container .swal2-icon {
+  margin: 0 !important;
+  transform: scale(0.7);
+  /* width: 20px !important; */
+  /* height: 20px !important; */
+}
+
+/* Warna Timer Progress Bar di Toast */
+.swal2-timer-progress-bar {
+  background-color: #3b82f6 !important;
+}
