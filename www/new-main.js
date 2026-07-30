@@ -52,8 +52,6 @@ let isEditMode = false;
 let holdInterval = null;
 
 let isStreaming = false;
-let lastFrameTime = 0;
-let fpsDisplay = 0;
 let mouseSensitivity = 1.5;
 let dragLastX = null;
 let dragLastY = null;
@@ -155,24 +153,6 @@ function toggleConnection() {
   };
 }
 
-// function handleServerMessage(data) {
-//   if (data.type === "frame") {
-//     const img = document.getElementById("screenImage");
-//     const placeholder = document.getElementById("screenPlaceholder");
-//     img.src = `data:image/jpeg;base64,${data.data}`;
-//     img.classList.add("has-frame");
-//     if (placeholder) placeholder.style.display = "none";
-
-//     // Update posisi kursor client jika server mengirimkan koordinat kursor (opsional/ekstraksi jika didukung backend)
-//     // if (data.cursor_x !== undefined && data.cursor_y !== undefined) {
-//     //   updateClientCursor(data.cursor_x, data.cursor_y);
-//     // }
-//   } else if (data.type === "stream_error") {
-//     TOAST.error(data.message || "Screen streaming gagal.");
-//     stopStreamingUI();
-//   }
-// }
-
 function handleServerMessage(data) {
   if (data.type === "frame") {
     const img = document.getElementById("screenImage");
@@ -182,7 +162,6 @@ function handleServerMessage(data) {
     if (placeholder) placeholder.style.display = "none";
   } else if (data.type === "stream_error") {
     TOAST.error(data.message || "Screen streaming gagal.");
-    // Ganti stopStreamingUI() yang sudah dihapus dengan exitStreamTab()
     exitStreamTab();
   }
 }
@@ -193,7 +172,6 @@ function updateClientCursor(x, y) {
   if (!cursor || !img) return;
 
   cursor.style.display = "block";
-  // Asumsi koordinat dinormalisasi atau relatif terhadap ukuran gambar yang tampil
   cursor.style.left = `${x}px`;
   cursor.style.top = `${y}px`;
 }
@@ -240,7 +218,6 @@ async function enterStreamTab() {
   streamWrapper.classList.add("active-stream-mode");
   document.getElementById("floatingPropBtn").style.display = "flex";
 
-  // 1. Trigger Fullscreen Otomatis
   try {
     if (document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen();
@@ -251,7 +228,6 @@ async function enterStreamTab() {
     console.warn("Fullscreen dibatasi browser:", e);
   }
 
-  // 2. Ubah Orientasi Layar Android menjadi Landscape Otomatis
   try {
     if (screen.orientation && screen.orientation.lock) {
       await screen.orientation.lock("landscape");
@@ -260,7 +236,6 @@ async function enterStreamTab() {
     console.warn("Screen orientation lock tidak didukung / ditolak:", e);
   }
 
-  // 3. Mulai Streaming Otomatis
   if (isConnected && !isStreaming) {
     isStreaming = true;
     sendToServer({ type: "stream_start" });
@@ -273,27 +248,23 @@ function exitStreamTab() {
   document.getElementById("floatingPropBtn").style.display = "none";
   document.getElementById("propertiesPanel").style.display = "none";
 
-  // Stop Streaming
   if (isStreaming) {
     isStreaming = false;
     sendToServer({ type: "stream_stop" });
   }
 
-  // Keluar Fullscreen
   try {
     if (document.exitFullscreen && document.fullscreenElement) {
       document.exitFullscreen();
     }
   } catch (e) {}
 
-  // Kembalikan Orientasi ke Portrait / Bebas
   try {
     if (screen.orientation && screen.orientation.unlock) {
       screen.orientation.unlock();
     }
   } catch (e) {}
 
-  // Pindahkan balik ke tab macro di UI utama
   document.getElementById("panel-macro").style.display = "block";
   document.querySelectorAll(".tab-btn").forEach((b) => {
     b.classList.toggle("active", b.dataset.tab === "macro");
@@ -310,7 +281,7 @@ function togglePropertiesPanel() {
 // ==========================================
 function setupStreamTouchpad() {
   const pad = document.getElementById("streamTouchArea");
-  const img = document.getElementById("screenImage"); // Pastikan ini img tag stream lo
+  const img = document.getElementById("screenImage");
 
   if (!pad || !img) return;
 
@@ -328,7 +299,7 @@ function setupStreamTouchpad() {
       dragLastY = t.clientY;
       dragMoved = 0;
 
-      handleAbsolutePosition(t.clientX, t.clientY, pad, img);
+      handleAbsolutePosition(t.clientX, t.clientY, img);
     },
     { passive: true },
   );
@@ -346,7 +317,7 @@ function setupStreamTouchpad() {
       dragLastX = t.clientX;
       dragLastY = t.clientY;
 
-      handleAbsolutePosition(t.clientX, t.clientY, pad, img);
+      handleAbsolutePosition(t.clientX, t.clientY, img);
     },
     { passive: true },
   );
@@ -358,6 +329,7 @@ function setupStreamTouchpad() {
     )
       return;
 
+    // Jika jari nyaris tidak bergeser, anggap sebagai klik kiri
     if (dragMoved < 4) {
       sendMouseClick("left");
     }
@@ -367,36 +339,29 @@ function setupStreamTouchpad() {
   });
 }
 
-function handleAbsolutePosition(clientX, clientY, container, image) {
-  // Pastikan gambar sudah dimuat
+function handleAbsolutePosition(clientX, clientY, image) {
   if (!image.naturalWidth) return;
 
   const rect = image.getBoundingClientRect();
-
-  // 1. Hitung skala dan ukuran asli gambar yang sedang tampil (telah di-scale)
   const scale = Math.min(
     rect.width / image.naturalWidth,
     rect.height / image.naturalHeight,
   );
+
   const renderedWidth = image.naturalWidth * scale;
   const renderedHeight = image.naturalHeight * scale;
 
-  // 2. Hitung offset (jarak area "black bars" di sisi layar)
   const offsetX = rect.left + (rect.width - renderedWidth) / 2;
   const offsetY = rect.top + (rect.height - renderedHeight) / 2;
 
-  // 3. Cari koordinat jari tepat di atas gambar asli
   let x = clientX - offsetX;
   let y = clientY - offsetY;
 
-  // Batasi agar kursor tidak keluar dari frame gambar
   x = Math.max(0, Math.min(x, renderedWidth));
   y = Math.max(0, Math.min(y, renderedHeight));
 
-  // 4. Update kursor biru lokal di layar HP
   updateClientCursor(clientX, clientY);
 
-  // 5. Ubah jadi persentase agar PC bisa mengonversinya ke resolusi aslinya
   const percentX = x / renderedWidth;
   const percentY = y / renderedHeight;
 
@@ -405,31 +370,6 @@ function handleAbsolutePosition(clientX, clientY, container, image) {
     percentX: percentX,
     percentY: percentY,
   });
-}
-
-function handleTrackpadMove(clientX, clientY) {
-  const dx = clientX - dragLastX;
-  const dy = clientY - dragLastY;
-  dragLastX = clientX;
-  dragLastY = clientY;
-  dragMoved += Math.abs(dx) + Math.abs(dy);
-
-  if (dx || dy) {
-    sendToServer({
-      type: "mouse_move",
-      dx: dx * mouseSensitivity,
-      dy: dy * mouseSensitivity,
-    });
-  }
-}
-
-function handleTrackpadRelease() {
-  if (dragMoved < 4) {
-    sendMouseClick("left");
-  }
-  dragLastX = null;
-  dragLastY = null;
-  dragMoved = 0;
 }
 
 function sendMouseClick(button, double) {
@@ -448,7 +388,7 @@ function onSensitivityChange(value) {
 }
 
 // ==========================================
-// MACRO PAD LOGIC (TETAP SAMA)
+// MACRO PAD LOGIC
 // ==========================================
 function startHold(index, event) {
   if (event) event.preventDefault();
