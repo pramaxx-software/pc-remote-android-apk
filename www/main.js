@@ -181,6 +181,10 @@ let dragLastX = null;
 let dragLastY = null;
 let dragMoved = 0;
 
+// Nomor urut frame stream - buat jaga-jaga kalau decode frame lama telat selesai
+// dan nyusul nimpa frame yang lebih baru (out-of-order render saat network/CPU lagi berat)
+let latestFrameSeq = 0;
+
 // Zoom & Pan Screen Stream
 let streamZoom = 1;
 let streamPanX = 0;
@@ -321,6 +325,9 @@ function toggleConnection() {
 
   try {
     ws = new WebSocket(wsUrl);
+    // WAJIB: frame stream sekarang dikirim server sebagai binary (bukan base64 lagi).
+    // Tanpa ini, event.data bakal jadi Blob dan parsing DataView-nya gagal.
+    ws.binaryType = "arraybuffer";
   } catch (err) {
     console.error("WebSocket constructor error:", err);
     TOAST.error("Gagal membuat koneksi WebSocket: " + err.message);
@@ -345,6 +352,13 @@ function toggleConnection() {
   };
 
   ws.onmessage = (event) => {
+    // Frame screen stream datang sebagai binary ArrayBuffer.
+    // Command/status lain (stream_error dll) tetap JSON teks seperti biasa.
+    if (event.data instanceof ArrayBuffer) {
+      handleBinaryFrame(event.data);
+      return;
+    }
+
     let data;
     try {
       data = JSON.parse(event.data);
@@ -375,33 +389,89 @@ function toggleConnection() {
 }
 
 // ==========================================
-// PESAN MASUK DARI SERVER (FRAME STREAM, DLL)
+// FRAME BINARY DARI SERVER (SCREEN STREAM)
+// Format: [1 byte type=1][2 byte width u16 BE][2 byte height u16 BE][JPEG bytes...]
+// screenImage adalah <canvas> - dirender pakai createImageBitmap + drawImage,
+// yang paling cepat buat frame rate tinggi (decode async, dan nggak butuh blob URL
+// sama sekali - bitmap-nya langsung di-close() abis dipakai, jadi nggak ada memory leak).
+// ==========================================
+async function handleBinaryFrame(buffer) {
+  if (!buffer || buffer.byteLength < 5) return;
+
+  const view = new DataView(buffer);
+  const msgType = view.getUint8(0);
+  if (msgType !== 1) return; // tipe lain diabaikan buat sekarang
+
+  const width = view.getUint16(1, false);
+  const height = view.getUint16(3, false);
+  const jpegBytes = new Uint8Array(buffer, 5);
+  const blob = new Blob([jpegBytes], { type: "image/jpeg" });
+
+  const seq = ++latestFrameSeq;
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(blob);
+  } catch (err) {
+    console.warn("Gagal decode frame stream:", err);
+    return;
+  }
+
+  // Kalau decode frame ini telat (network/CPU lagi berat) dan frame yang lebih baru
+  // udah lebih dulu masuk, buang bitmap ini - jangan sampai nimpa gambar yang lebih baru.
+  if (seq !== latestFrameSeq) {
+    bitmap.close();
+    return;
+  }
+
+  const canvas = document.getElementById("screenImage");
+  const placeholder = document.getElementById("screenPlaceholder");
+  if (!canvas) {
+    bitmap.close();
+    return;
+  }
+
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  canvas.classList.add("has-frame");
+  if (placeholder) placeholder.style.display = "none";
+
+  if (isStreaming) {
+    const now = performance.now();
+    if (lastFrameTime) {
+      const instFps = 1000 / Math.max(now - lastFrameTime, 1);
+      fpsDisplay = fpsDisplay ? fpsDisplay * 0.8 + instFps * 0.2 : instFps;
+    }
+    lastFrameTime = now;
+    const statusEl = document.getElementById("streamStatus");
+    if (statusEl) {
+      statusEl.innerText = `● Live ~${Math.round(fpsDisplay)} fps`;
+      statusEl.className = "stream-status-pill live";
+    }
+  }
+}
+
+// ==========================================
+// PESAN JSON MASUK DARI SERVER (STATUS, ERROR, DLL)
 // ==========================================
 function handleServerMessage(data) {
-  if (data.type === "frame") {
-    const img = document.getElementById("screenImage");
-    const placeholder = document.getElementById("screenPlaceholder");
-    img.src = `data:image/jpeg;base64,${data.data}`;
-    img.classList.add("has-frame");
-    if (placeholder) placeholder.style.display = "none";
-
-    if (isStreaming) {
-      const now = performance.now();
-      if (lastFrameTime) {
-        const instFps = 1000 / Math.max(now - lastFrameTime, 1);
-        fpsDisplay = fpsDisplay ? fpsDisplay * 0.8 + instFps * 0.2 : instFps;
-      }
-      lastFrameTime = now;
-      const statusEl = document.getElementById("streamStatus");
-      if (statusEl) {
-        statusEl.innerText = `● Live ~${Math.round(fpsDisplay)} fps`;
-        statusEl.className = "stream-status-pill live";
-      }
-    }
-  } else if (data.type === "stream_error") {
+  if (data.type === "stream_error") {
     TOAST.error(data.message || "Screen streaming gagal diaktifkan.");
     stopStreamingAuto();
   }
+}
+
+function clearScreenCanvas() {
+  const canvas = document.getElementById("screenImage");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 function resetUI() {
@@ -434,13 +504,14 @@ function resetUI() {
   exitFullscreenSafe();
   unlockOrientation();
 
-  const img = document.getElementById("screenImage");
+  const canvas = document.getElementById("screenImage");
   const placeholder = document.getElementById("screenPlaceholder");
-  if (img) {
-    img.classList.remove("has-frame");
-    img.src = "";
+  if (canvas) {
+    canvas.classList.remove("has-frame");
   }
   if (placeholder) placeholder.style.display = "flex";
+
+  clearScreenCanvas();
 }
 
 // ==========================================
@@ -947,10 +1018,12 @@ function stopStreamingAuto() {
     statusEl.className = "stream-status-pill";
   }
 
-  const img = document.getElementById("screenImage");
+  const canvas = document.getElementById("screenImage");
   const placeholder = document.getElementById("screenPlaceholder");
-  if (img) img.classList.remove("has-frame");
+  if (canvas) canvas.classList.remove("has-frame");
   if (placeholder) placeholder.style.display = "flex";
+
+  clearScreenCanvas();
 }
 
 // ==========================================
