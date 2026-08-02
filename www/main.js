@@ -181,6 +181,20 @@ let dragLastX = null;
 let dragLastY = null;
 let dragMoved = 0;
 
+// Zoom & Pan Screen Stream
+let streamZoom = 1;
+let streamPanX = 0;
+let streamPanY = 0;
+const STREAM_ZOOM_MIN = 1;
+const STREAM_ZOOM_MAX = 4;
+let pinchStartDist = null;
+let pinchStartZoom = 1;
+let panStartX = null;
+let panStartY = null;
+let panOriginX = 0;
+let panOriginY = 0;
+let lastTapTime = 0;
+
 // Scanner Instance
 let html5QrcodeScanner = null;
 
@@ -211,6 +225,7 @@ window.onload = () => {
 
   setupTrackpad();
   setupTypeInput();
+  setupStreamZoom();
 };
 
 // ==========================================
@@ -460,7 +475,13 @@ function enterStreamView() {
 
 function exitStreamView() {
   const drawer = document.getElementById("controlDrawer");
+  const stage = document.getElementById("streamStage");
+  const fab = document.getElementById("fabToggle");
   if (drawer) drawer.classList.remove("open");
+  if (stage) stage.classList.remove("drawer-open");
+  if (fab) fab.classList.remove("faded");
+
+  resetStreamZoom();
 
   if (isStreaming) {
     stopStreamingAuto();
@@ -551,7 +572,22 @@ document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 // ==========================================
 function toggleControlDrawer() {
   const drawer = document.getElementById("controlDrawer");
-  if (drawer) drawer.classList.toggle("open");
+  const stage = document.getElementById("streamStage");
+  const fab = document.getElementById("fabToggle");
+  if (!drawer) return;
+
+  const willOpen = !drawer.classList.contains("open");
+  drawer.classList.toggle("open", willOpen);
+  if (stage) stage.classList.toggle("drawer-open", willOpen);
+  if (fab) fab.classList.toggle("faded", willOpen);
+
+  // Area video berubah ukuran (transisi 0.25s) -> re-clamp pan biar gambar gak nyangkut di luar frame
+  if (streamZoom > 1) {
+    setTimeout(() => {
+      clampStreamPan();
+      applyStreamTransform();
+    }, 260);
+  }
 }
 
 function switchControlTab(ctrl) {
@@ -903,6 +939,7 @@ function stopStreamingAuto() {
     sendToServer({ type: "stream_stop" });
   }
   isStreaming = false;
+  resetStreamZoom();
 
   const statusEl = document.getElementById("streamStatus");
   if (statusEl) {
@@ -964,4 +1001,151 @@ function sendDrawerShortcut() {
   if (keys.length) {
     sendToServer({ type: "shortcut", keys });
   }
+}
+
+// ==========================================
+// FITUR ZOOM & PAN SCREEN STREAM
+// Pinch 2 jari, double-tap, atau tombol +/-/reset
+// ==========================================
+function setupStreamZoom() {
+  const stage = document.getElementById("streamStage");
+  if (!stage) return;
+
+  stage.addEventListener("touchstart", onStreamTouchStart, { passive: false });
+  stage.addEventListener("touchmove", onStreamTouchMove, { passive: false });
+  stage.addEventListener("touchend", onStreamTouchEnd, { passive: false });
+  stage.addEventListener("touchcancel", onStreamTouchEnd, { passive: false });
+
+  // Testing di browser desktop: Ctrl+Scroll buat zoom, double click buat quick zoom
+  stage.addEventListener(
+    "wheel",
+    (e) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      zoomStreamBy(e.deltaY < 0 ? 0.25 : -0.25);
+    },
+    { passive: false },
+  );
+  stage.addEventListener("dblclick", () => toggleQuickZoom());
+}
+
+function streamTouchDistance(t1, t2) {
+  const dx = t1.clientX - t2.clientX;
+  const dy = t1.clientY - t2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function onStreamTouchStart(e) {
+  // Jangan ganggu tap tombol FAB/exit/zoom toolbar yang menumpuk di atas stage
+  if (
+    e.target.closest(
+      ".fab-btn, .exit-stream-btn, .zoom-toolbar, .control-drawer",
+    )
+  ) {
+    return;
+  }
+
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    pinchStartDist = streamTouchDistance(e.touches[0], e.touches[1]);
+    pinchStartZoom = streamZoom;
+    panStartX = null;
+  } else if (e.touches.length === 1) {
+    const now = Date.now();
+    if (now - lastTapTime < 300) {
+      lastTapTime = 0;
+      toggleQuickZoom();
+      return;
+    }
+    lastTapTime = now;
+
+    if (streamZoom > 1) {
+      panStartX = e.touches[0].clientX;
+      panStartY = e.touches[0].clientY;
+      panOriginX = streamPanX;
+      panOriginY = streamPanY;
+    }
+  }
+}
+
+function onStreamTouchMove(e) {
+  if (e.touches.length === 2 && pinchStartDist) {
+    e.preventDefault();
+    const newDist = streamTouchDistance(e.touches[0], e.touches[1]);
+    setStreamZoom((newDist / pinchStartDist) * pinchStartZoom);
+  } else if (e.touches.length === 1 && panStartX !== null) {
+    e.preventDefault();
+    const dx = e.touches[0].clientX - panStartX;
+    const dy = e.touches[0].clientY - panStartY;
+    streamPanX = panOriginX + dx;
+    streamPanY = panOriginY + dy;
+    clampStreamPan();
+    applyStreamTransform();
+  }
+}
+
+function onStreamTouchEnd(e) {
+  if (e.touches.length < 2) pinchStartDist = null;
+  if (e.touches.length === 0) {
+    panStartX = null;
+    panStartY = null;
+  }
+}
+
+function toggleQuickZoom() {
+  setStreamZoom(streamZoom > 1 ? 1 : 2.5);
+}
+
+function zoomStreamBy(delta) {
+  setStreamZoom(streamZoom + delta);
+}
+
+function setStreamZoom(zoom) {
+  streamZoom = Math.min(STREAM_ZOOM_MAX, Math.max(STREAM_ZOOM_MIN, zoom));
+  if (streamZoom === 1) {
+    streamPanX = 0;
+    streamPanY = 0;
+  } else {
+    clampStreamPan();
+  }
+  applyStreamTransform();
+  updateZoomLabel();
+}
+
+function resetStreamZoom() {
+  streamZoom = 1;
+  streamPanX = 0;
+  streamPanY = 0;
+  applyStreamTransform();
+  updateZoomLabel();
+}
+
+function clampStreamPan() {
+  const img = document.getElementById("screenImage");
+  const stage = document.getElementById("streamStage");
+  if (!img || !stage) return;
+
+  const baseW = img.offsetWidth;
+  const baseH = img.offsetHeight;
+  if (!baseW || !baseH) return;
+
+  const scaledW = baseW * streamZoom;
+  const scaledH = baseH * streamZoom;
+
+  const maxPanX = Math.max(0, (scaledW - stage.clientWidth) / 2);
+  const maxPanY = Math.max(0, (scaledH - stage.clientHeight) / 2);
+
+  streamPanX = Math.min(maxPanX, Math.max(-maxPanX, streamPanX));
+  streamPanY = Math.min(maxPanY, Math.max(-maxPanY, streamPanY));
+}
+
+function applyStreamTransform() {
+  const img = document.getElementById("screenImage");
+  if (!img) return;
+  img.style.transform = `translate(${streamPanX}px, ${streamPanY}px) scale(${streamZoom})`;
+}
+
+function updateZoomLabel() {
+  const label = document.getElementById("zoomLabel");
+  if (label) label.innerText = `${Math.round(streamZoom * 100)}%`;
 }

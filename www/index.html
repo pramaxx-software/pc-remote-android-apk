@@ -133,6 +133,14 @@
           ✕
         </button>
 
+        <!-- ZOOM TOOLBAR (PINCH / DOUBLE TAP / TOMBOL) -->
+        <div class="zoom-toolbar" id="zoomToolbar">
+          <button onclick="zoomStreamBy(0.5)" title="Perbesar">＋</button>
+          <span id="zoomLabel">100%</span>
+          <button onclick="zoomStreamBy(-0.5)" title="Perkecil">－</button>
+          <button onclick="resetStreamZoom()" title="Reset Zoom">⤢</button>
+        </div>
+
         <!-- FLOATING TOGGLE BUTTON -->
         <button
           id="fabToggle"
