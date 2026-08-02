@@ -181,9 +181,8 @@ let dragLastX = null;
 let dragLastY = null;
 let dragMoved = 0;
 
-// Nomor urut frame stream - buat jaga-jaga kalau decode frame lama telat selesai
-// dan nyusul nimpa frame yang lebih baru (out-of-order render saat network/CPU lagi berat)
-let latestFrameSeq = 0;
+// Blob URL frame stream saat ini - dilacak biar bisa di-revoke (cegah memory leak saat streaming lama)
+let lastFrameBlobUrl = null;
 
 // Zoom & Pan Screen Stream
 let streamZoom = 1;
@@ -391,55 +390,40 @@ function toggleConnection() {
 // ==========================================
 // FRAME BINARY DARI SERVER (SCREEN STREAM)
 // Format: [1 byte type=1][2 byte width u16 BE][2 byte height u16 BE][JPEG bytes...]
-// screenImage adalah <canvas> - dirender pakai createImageBitmap + drawImage,
-// yang paling cepat buat frame rate tinggi (decode async, dan nggak butuh blob URL
-// sama sekali - bitmap-nya langsung di-close() abis dipakai, jadi nggak ada memory leak).
 // ==========================================
-async function handleBinaryFrame(buffer) {
+function handleBinaryFrame(buffer) {
   if (!buffer || buffer.byteLength < 5) return;
 
   const view = new DataView(buffer);
   const msgType = view.getUint8(0);
   if (msgType !== 1) return; // tipe lain diabaikan buat sekarang
 
-  const width = view.getUint16(1, false);
-  const height = view.getUint16(3, false);
   const jpegBytes = new Uint8Array(buffer, 5);
   const blob = new Blob([jpegBytes], { type: "image/jpeg" });
+  const url = URL.createObjectURL(blob);
 
-  const seq = ++latestFrameSeq;
-  let bitmap;
-  try {
-    bitmap = await createImageBitmap(blob);
-  } catch (err) {
-    console.warn("Gagal decode frame stream:", err);
-    return;
-  }
-
-  // Kalau decode frame ini telat (network/CPU lagi berat) dan frame yang lebih baru
-  // udah lebih dulu masuk, buang bitmap ini - jangan sampai nimpa gambar yang lebih baru.
-  if (seq !== latestFrameSeq) {
-    bitmap.close();
-    return;
-  }
-
-  const canvas = document.getElementById("screenImage");
+  const img = document.getElementById("screenImage");
   const placeholder = document.getElementById("screenPlaceholder");
-  if (!canvas) {
-    bitmap.close();
+  if (!img) {
+    URL.revokeObjectURL(url);
     return;
   }
 
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
+  // Revoke blob URL frame SEBELUMNYA setelah frame baru selesai di-render.
+  // Ini krusial buat streaming realtime - kalau nggak di-revoke, tiap frame
+  // (30-60x/detik) bikin blob nyangkut di memori dan lama-lama app jadi berat/nge-lag.
+  const prevUrl = lastFrameBlobUrl;
+  img.onload = () => {
+    if (prevUrl) URL.revokeObjectURL(prevUrl);
+  };
+  img.onerror = () => {
+    if (prevUrl) URL.revokeObjectURL(prevUrl);
+  };
 
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
+  img.src = url;
+  lastFrameBlobUrl = url;
 
-  canvas.classList.add("has-frame");
+  img.classList.add("has-frame");
   if (placeholder) placeholder.style.display = "none";
 
   if (isStreaming) {
@@ -467,11 +451,11 @@ function handleServerMessage(data) {
   }
 }
 
-function clearScreenCanvas() {
-  const canvas = document.getElementById("screenImage");
-  if (!canvas) return;
-  const ctx = canvas.getContext("2d");
-  if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+function clearFrameBlobUrl() {
+  if (lastFrameBlobUrl) {
+    URL.revokeObjectURL(lastFrameBlobUrl);
+    lastFrameBlobUrl = null;
+  }
 }
 
 function resetUI() {
@@ -504,14 +488,15 @@ function resetUI() {
   exitFullscreenSafe();
   unlockOrientation();
 
-  const canvas = document.getElementById("screenImage");
+  const img = document.getElementById("screenImage");
   const placeholder = document.getElementById("screenPlaceholder");
-  if (canvas) {
-    canvas.classList.remove("has-frame");
+  if (img) {
+    img.classList.remove("has-frame");
+    img.src = "";
   }
   if (placeholder) placeholder.style.display = "flex";
 
-  clearScreenCanvas();
+  clearFrameBlobUrl();
 }
 
 // ==========================================
@@ -1018,12 +1003,12 @@ function stopStreamingAuto() {
     statusEl.className = "stream-status-pill";
   }
 
-  const canvas = document.getElementById("screenImage");
+  const img = document.getElementById("screenImage");
   const placeholder = document.getElementById("screenPlaceholder");
-  if (canvas) canvas.classList.remove("has-frame");
+  if (img) img.classList.remove("has-frame");
   if (placeholder) placeholder.style.display = "flex";
 
-  clearScreenCanvas();
+  clearFrameBlobUrl();
 }
 
 // ==========================================
