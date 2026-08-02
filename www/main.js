@@ -1084,7 +1084,7 @@ function setupStreamZoom() {
     },
     { passive: false },
   );
-  stage.addEventListener("dblclick", () => toggleQuickZoom());
+  // stage.addEventListener("dblclick", () => toggleQuickZoom());
 }
 
 function streamTouchDistance(t1, t2) {
