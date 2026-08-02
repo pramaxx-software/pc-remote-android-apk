@@ -86,7 +86,7 @@ jobs:
           body: |
             ### 🚀 Update Otomatis Pramaxx Remote (${{ steps.version.outputs.tag }})
             - **APK Android**: Auto-generated dari GitHub Actions (untuk instalasi awal).
-            - **OTA Bundle (`frontend-bundle.zip`)**: Berhasil dikirim otomatis ke server Laravel untuk update via aplikasi.
+            - **OTA Bundle (`frontend-bundle.zip`)**: Berhasil dikirim otomatis ke server untuk update via aplikasi.
           files: |
             android/app/build/outputs/apk/debug/app-debug.apk
             frontend-bundle.zip

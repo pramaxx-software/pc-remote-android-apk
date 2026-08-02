@@ -7,10 +7,11 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Pramaxx Remote Keyboard</title>
+    <!-- TAMBAHAN: Library Scanner QR Code -->
     <script src="htmlqrcode.min.js"></script>
     <script src="sweetalert2.js"></script>
     <link rel="stylesheet" href="sweetalert2.css" />
-    <link rel="stylesheet" href="new-style.css" />
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
     <!-- PULL TO REFRESH INDIKATOR -->
@@ -19,12 +20,12 @@
     </div>
 
     <!-- 1. HEADER & STATUS -->
-    <div class="card header" id="mainHeaderCard">
+    <div class="card header">
       <div class="title">Pramaxx Remote Keyboard</div>
       <div id="statusBadge" class="status-badge disconnected">Disconnected</div>
     </div>
 
-    <!-- 2. KONEKSI & PIN -->
+    <!-- 2. KONEKSI & PIN (DENGAN FITUR QR) - AKAN DISSEMBUNYIKAN SAAT TERHUBUNG -->
     <div class="card" id="connectionCard">
       <div class="form-row">
         <div class="form-group">
@@ -55,6 +56,7 @@
         />
       </div>
 
+      <!-- Action Row (Connect & Scan QR) -->
       <div class="action-row">
         <button
           id="connectBtn"
@@ -75,7 +77,7 @@
       </div>
     </div>
 
-    <!-- TAB BAR (HANYA 2 MENU UTAMA: MACRO & STREAM) -->
+    <!-- TAB BAR (MUNCUL SAAT SUDAH TERHUBUNG) -->
     <div class="tab-bar" id="tabBar">
       <button
         class="tab-btn active"
@@ -85,7 +87,7 @@
         ⌨ Macro Pad
       </button>
       <button class="tab-btn" data-tab="stream" onclick="switchTab('stream')">
-        🖥 Stream & Control
+        🖥 Stream
       </button>
     </div>
 
@@ -114,161 +116,180 @@
       <div class="macro-grid" id="macroGrid"></div>
     </div>
 
-    <!-- 3B. STREAM TAB (SPLIT LAYOUT: KIRI STREAM, KANAN KONTROL & TRACKPAD) -->
-    <div class="stream-wrapper" id="panel-stream">
-      <!-- Kolom Kiri: Layar Stream -->
-      <div class="stream-left-pane">
-        <div class="screen-container" id="streamTouchArea">
-          <img id="screenImage" alt="Live screen" />
-          <span id="screenPlaceholder">Menghubungkan & Memuat Stream...</span>
-        </div>
-      </div>
+    <!-- 3B. STREAM (FULLSCREEN + LANDSCAPE + FLOATING CONTROL) -->
+    <div class="tab-panel" id="panel-stream" style="display: none">
+      <div class="stream-stage" id="streamStage">
+        <img id="screenImage" alt="Live screen" />
+        <span id="screenPlaceholder">Menyambungkan ke layar PC...</span>
 
-      <!-- Kolom Kanan: Panel Kontrol, Trackpad & Settings -->
-      <div class="stream-right-pane" style="max-width: 300px">
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          "
+        <div id="streamStatus" class="stream-status-pill">Nonaktif</div>
+
+        <button
+          class="exit-stream-btn"
+          id="exitStreamBtn"
+          onclick="switchTab('macro')"
+          title="Keluar dari Stream"
         >
-          <span class="prop-section-title" style="margin: 0"
-            >Remote Control</span
-          >
-          <button
-            class="btn btn-danger"
-            style="padding: 4px 8px; font-size: 10px; width: auto"
-            onclick="exitStreamTab()"
-          >
-            Keluar
-          </button>
-        </div>
+          ✕
+        </button>
 
-        <div>
-          <div class="prop-section-title">Trackpad & Scrollbar</div>
-          <div style="display: flex; gap: 8px; height: 130px">
-            <!-- Trackpad (Geser Kursor) -->
-            <div
-              id="floatingTrackpad"
-              style="
-                flex: 1;
-                height: 100%;
-                background-color: var(--bg-input);
-                border: 1px dashed #475569;
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: var(--text-sub);
-                font-size: 11px;
-                text-align: center;
-                padding: 5px;
-                touch-action: none;
-              "
-            >
-              Trackpad
+        <!-- FLOATING TOGGLE BUTTON -->
+        <button
+          id="fabToggle"
+          class="fab-btn"
+          onclick="toggleControlDrawer()"
+          title="Kontrol Mouse & Keyboard"
+        >
+          🎮
+        </button>
+
+        <!-- SLIDE-IN CONTROL DRAWER -->
+        <div id="controlDrawer" class="control-drawer">
+          <div class="drawer-header">
+            <div class="drawer-tabs">
+              <button
+                class="drawer-tab-btn active"
+                data-ctrl="mouse"
+                onclick="switchControlTab('mouse')"
+              >
+                🖱 Mouse
+              </button>
+              <button
+                class="drawer-tab-btn"
+                data-ctrl="keyboard"
+                onclick="switchControlTab('keyboard')"
+              >
+                ⌨ Keyboard
+              </button>
+            </div>
+            <button class="drawer-close" onclick="toggleControlDrawer()">
+              ✕
+            </button>
+          </div>
+
+          <div class="drawer-body">
+            <!-- MOUSE CONTROL -->
+            <div class="ctrl-panel" id="ctrl-mouse">
+              <div id="trackpadArea">
+                <span id="trackpadHint"
+                  >Geser untuk gerakkan kursor · Tap = klik kiri</span
+                >
+              </div>
+              <div class="mouse-btn-row">
+                <button
+                  class="btn"
+                  style="background: var(--bg-input)"
+                  onclick="sendMouseClick('left')"
+                >
+                  Klik Kiri
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="sendMouseClick('right')"
+                >
+                  Klik Kanan
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="sendMouseClick('left', true)"
+                >
+                  Double
+                </button>
+              </div>
+              <div class="scroll-btn-row">
+                <button class="btn btn-secondary" onclick="sendMouseScroll(1)">
+                  ▲ Scroll
+                </button>
+                <button class="btn btn-secondary" onclick="sendMouseScroll(-1)">
+                  ▼ Scroll
+                </button>
+              </div>
+              <div class="form-group" style="margin-top: 10px">
+                <label>Sensitivitas: <span id="sensValue">1.5x</span></label>
+                <input
+                  type="range"
+                  id="sensSlider"
+                  min="0.5"
+                  max="3"
+                  step="0.1"
+                  value="1.5"
+                  oninput="onSensitivityChange(this.value)"
+                />
+              </div>
             </div>
 
-            <!-- Dedicated Vertical Scrollbar Strip -->
-            <div
-              id="verticalScrollStrip"
-              style="
-                width: 45px;
-                height: 100%;
-                background-color: var(--bg-input);
-                border: 1px solid #475569;
-                border-radius: 10px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: var(--text-sub);
-                font-size: 10px;
-                font-weight: 600;
-                text-align: center;
-                touch-action: none;
-                user-select: none;
-              "
-            >
-              Scroll
+            <!-- KEYBOARD CONTROL -->
+            <div class="ctrl-panel" id="ctrl-keyboard" style="display: none">
+              <input
+                type="text"
+                id="typeInput"
+                class="type-input"
+                placeholder="Ketuk lalu ketik di sini..."
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="off"
+                spellcheck="false"
+              />
+              <div class="key-grid">
+                <button
+                  class="btn btn-secondary"
+                  onclick="sendKeyPress('enter')"
+                >
+                  Enter
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="sendKeyPress('backspace')"
+                >
+                  ⌫
+                </button>
+                <button class="btn btn-secondary" onclick="sendKeyPress('esc')">
+                  Esc
+                </button>
+                <button class="btn btn-secondary" onclick="sendKeyPress('tab')">
+                  Tab
+                </button>
+                <button class="btn btn-secondary" onclick="sendKeyPress('up')">
+                  ▲
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="sendKeyPress('down')"
+                >
+                  ▼
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="sendKeyPress('left')"
+                >
+                  ◀
+                </button>
+                <button
+                  class="btn btn-secondary"
+                  onclick="sendKeyPress('right')"
+                >
+                  ▶
+                </button>
+              </div>
+              <div class="form-group" style="margin-top: 10px">
+                <label>Shortcut Custom (pisahkan koma):</label>
+                <div style="display: flex; gap: 6px">
+                  <input
+                    type="text"
+                    id="drawerShortcutInput"
+                    placeholder="ctrl,alt,t"
+                  />
+                  <button
+                    class="btn"
+                    style="width: auto; padding: 10px 14px"
+                    onclick="sendDrawerShortcut()"
+                  >
+                    Kirim
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div>
-          <div class="prop-section-title">Klik Mouse</div>
-          <div class="mouse-btn-row">
-            <button
-              class="btn"
-              style="
-                background: var(--bg-input);
-                padding: 8px 4px;
-                font-size: 11px;
-              "
-              onclick="sendMouseClick('left')"
-            >
-              Kiri
-            </button>
-            <button
-              class="btn btn-secondary"
-              style="padding: 8px 4px; font-size: 11px"
-              onclick="sendMouseClick('right')"
-            >
-              Kanan
-            </button>
-            <button
-              class="btn btn-secondary"
-              style="padding: 8px 4px; font-size: 11px"
-              onclick="sendMouseClick('left', true)"
-            >
-              Double
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <div class="prop-section-title">Scroll (Tekan & Tahan)</div>
-          <div class="scroll-btn-row">
-            <button
-              class="btn btn-secondary"
-              style="padding: 8px 4px; font-size: 11px"
-              onmousedown="startScrollHold(1)"
-              onmouseup="stopScrollHold()"
-              onmouseleave="stopScrollHold()"
-              ontouchstart="startScrollHold(1)"
-              ontouchend="stopScrollHold()"
-              ontouchcancel="stopScrollHold()"
-            >
-              ▲ Atas
-            </button>
-            <button
-              class="btn btn-secondary"
-              style="padding: 8px 4px; font-size: 11px"
-              onmousedown="startScrollHold(-1)"
-              onmouseup="stopScrollHold()"
-              onmouseleave="stopScrollHold()"
-              ontouchstart="startScrollHold(-1)"
-              ontouchend="stopScrollHold()"
-              ontouchcancel="stopScrollHold()"
-            >
-              ▼ Bawah
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label style="font-size: 10px"
-            >Sensitivitas: <span id="sensValue">1.5x</span></label
-          >
-          <input
-            type="range"
-            id="sensSlider"
-            min="0.5"
-            max="3"
-            step="0.1"
-            value="1.5"
-            oninput="onSensitivityChange(this.value)"
-          />
         </div>
       </div>
     </div>
@@ -341,13 +362,53 @@
         >
           Arahkan Kamera ke QR Code
         </h3>
+
+        <!-- Area Kamera -->
         <div id="qrReader"></div>
+
         <button class="btn btn-danger" onclick="closeQrScanner()">
           Tutup Kamera
         </button>
       </div>
     </div>
 
-    <script src="new-main.js"></script>
+    <!-- FLOATING DEBUG CONSOLE -->
+    <!-- <button id="toggleDebugBtn" onclick="toggleDebugConsole()">🐛 Log</button> -->
+    <div id="debugConsole">
+      <div class="debug-header">
+        <span>Console Debugger</span>
+        <div style="display: flex; gap: 5px">
+          <button
+            onclick="clearDebugLogs()"
+            style="
+              background: #ef4444;
+              border: none;
+              color: white;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 10px;
+            "
+          >
+            Clear
+          </button>
+          <button
+            onclick="toggleDebugConsole()"
+            style="
+              background: #475569;
+              border: none;
+              color: white;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 10px;
+            "
+          >
+            X
+          </button>
+        </div>
+      </div>
+      <div class="debug-body" id="debugLogBody"></div>
+    </div>
+
+    <script src="main.js"></script>
   </body>
 </html>

@@ -175,7 +175,7 @@ select:focus {
   margin-top: 5px;
 }
 
-/* --- TAB BAR (2 Menu Utama) --- */
+/* --- TAB BAR --- */
 .tab-bar {
   display: none;
   gap: 8px;
@@ -190,9 +190,9 @@ select:focus {
   background: transparent;
   border: none;
   color: var(--text-sub);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 12px 6px;
+  padding: 10px 6px;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
@@ -203,174 +203,221 @@ select:focus {
   color: white;
 }
 
-/* --- SCREEN VIEW & SPLIT STREAM MODE --- */
-.stream-wrapper {
+/* --- STREAM STAGE (FULLSCREEN + LANDSCAPE) --- */
+#panel-stream {
+  padding: 0;
+}
+
+.stream-stage {
   position: relative;
   width: 100%;
   height: 100vh;
   background-color: #000;
-  display: none;
-  flex-direction: row; /* Bersebelahan kiri-kanan */
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
 }
 
-.stream-wrapper.active-stream-mode {
-  display: flex;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 9999;
+#panel-stream:fullscreen .stream-stage,
+#panel-stream:-webkit-full-screen .stream-stage {
   width: 100vw;
   height: 100vh;
-  padding: 0;
-  margin: 0;
-  border-radius: 0;
 }
 
-/* Kolom Kiri: Screen Stream */
-.stream-left-pane {
-  flex: 1.3;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  background-color: #000;
-  overflow: hidden;
-}
-
-.screen-container {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.screen-container img {
-  width: 100%;
-  height: 100%;
+.stream-stage img#screenImage {
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
   display: none;
 }
 
-.screen-container img.has-frame {
+.stream-stage img#screenImage.has-frame {
   display: block;
 }
 
 #screenPlaceholder {
   color: #475569;
   font-size: 13px;
+  padding: 0 30px;
   text-align: center;
-  padding: 10px;
 }
 
-/* Kolom Kanan: Panel Kontrol & Trackpad */
-.stream-right-pane {
-  flex: 1;
-  height: 100%;
-  background-color: rgba(30, 41, 59, 0.98);
-  backdrop-filter: blur(10px);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 12px;
-  overflow-y: auto;
-  z-index: 10004;
-  width: 50%;
-}
-
-/* Sembunyikan elemen floating lama karena sudah diganti panel permanen */
-#floatingPropBtn,
-#propertiesPanel {
-  display: none !important;
-}
-#screenPlaceholder {
-  color: #475569;
-  font-size: 14px;
-}
-
-/* --- CLIENT CURSOR --- */
-#clientCursor {
+.stream-status-pill {
   position: absolute;
-  width: 16px;
-  height: 16px;
-  background: radial-gradient(circle, #3b82f6 40%, transparent 60%);
-  border: 2px solid white;
-  border-radius: 50%;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  z-index: 10000;
-  display: none;
-  box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--text-sub);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 20px;
+  z-index: 5;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
 }
 
-/* --- FLOATING PROPERTIES BUTTON & PANEL --- */
-#floatingPropBtn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 50px;
-  height: 50px;
-  background-color: var(--accent);
-  color: white;
-  border: none;
+.stream-status-pill.connecting {
+  color: #f59e0b;
+}
+
+.stream-status-pill.live {
+  color: var(--success);
+}
+
+.exit-stream-btn {
+  position: absolute;
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-  font-size: 22px;
-  display: none;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  font-size: 16px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10005;
   cursor: pointer;
-  transition: transform 0.2s;
+  z-index: 6;
 }
 
-#floatingPropBtn:active {
-  transform: scale(0.9);
+/* --- FLOATING TOGGLE BUTTON --- */
+.fab-btn {
+  position: absolute;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  right: max(20px, env(safe-area-inset-right));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 22px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 6;
 }
 
-#propertiesPanel {
-  position: fixed;
-  bottom: 80px;
-  right: 20px;
-  width: 320px;
-  max-width: calc(100vw - 40px);
-  background-color: rgba(30, 41, 59, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
-  padding: 15px;
-  display: none;
+/* --- SLIDE-IN CONTROL DRAWER --- */
+.control-drawer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 78%;
+  background-color: var(--bg-card);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.5);
+  display: flex;
   flex-direction: column;
-  gap: 12px;
-  z-index: 10004;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+  z-index: 7;
 }
-::-webkit-scrollbar {
-  display: none;
+
+.control-drawer.open {
+  transform: translateY(0);
 }
-.prop-section-title {
-  font-size: 12px;
-  font-weight: 700;
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.drawer-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.drawer-tab-btn {
+  background: transparent;
+  border: none;
   color: var(--text-sub);
-  text-transform: uppercase;
-  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.drawer-tab-btn.active {
+  background-color: var(--accent);
+  color: white;
+}
+
+.drawer-close {
+  background: transparent;
+  border: none;
+  color: var(--text-sub);
+  font-size: 16px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.drawer-body {
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.type-input {
+  margin-bottom: 10px;
+}
+
+.key-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.key-grid .btn {
+  padding: 10px 4px;
+  font-size: 12px;
+}
+
+/* --- TRACKPAD --- */
+#trackpadArea {
+  height: 160px;
+  background-color: var(--bg-input);
+  border-radius: 14px;
+  border: 1px solid #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  touch-action: none;
+  position: relative;
+  overflow: hidden;
+}
+
+#trackpadHint {
+  font-size: 12px;
+  color: var(--text-sub);
+  padding: 0 20px;
+  pointer-events: none;
 }
 
 .mouse-btn-row,
 .scroll-btn-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .mouse-btn-row .btn,
 .scroll-btn-row .btn {
-  padding: 10px 4px;
-  font-size: 12px;
+  padding: 12px 6px;
+  font-size: 13px;
 }
 
 input[type="range"] {
@@ -510,12 +557,75 @@ input[type="range"] {
   border: 1px solid #475569;
 }
 
+/* Khusus Container Scanner */
 #qrReader {
   width: 100%;
   background: white;
   border-radius: 10px;
   overflow: hidden;
   margin-bottom: 15px;
+}
+
+/* --- DEBUG CONSOLE PANEL --- */
+#debugConsole {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(15, 23, 42, 0.95);
+  border-top: 2px solid var(--accent);
+  max-height: 200px;
+  display: none;
+  flex-direction: column;
+  z-index: 999;
+  font-family: monospace;
+  font-size: 11px;
+}
+.debug-header {
+  background: #1e293b;
+  padding: 5px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #334155;
+}
+.debug-body {
+  padding: 8px;
+  overflow-y: auto;
+  max-height: 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+.log-item {
+  word-break: break-all;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 2px;
+}
+.log-error {
+  color: var(--danger);
+}
+.log-info {
+  color: #38bdf8;
+}
+.log-success {
+  color: var(--success);
+}
+
+#toggleDebugBtn {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  background: #475569;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 11px;
+  z-index: 1000;
+  opacity: 0.7;
+  cursor: pointer;
 }
 
 /* --- CUSTOM SWEETALERT2 DARK THEME --- */
@@ -542,6 +652,7 @@ input[type="range"] {
   font-size: 14px !important;
 }
 
+/* Input di dalam SweetAlert (jika pakai swal.fire dengan input) */
 .swal2-input,
 .swal2-textarea {
   background-color: #334155 !important;
@@ -552,6 +663,13 @@ input[type="range"] {
   box-shadow: none !important;
 }
 
+.swal2-input:focus,
+.swal2-textarea:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3) !important;
+}
+
+/* Tombol Aksi */
 .swal2-actions {
   gap: 10px !important;
   margin-top: 15px !important;
@@ -584,4 +702,53 @@ input[type="range"] {
   font-size: 14px !important;
   font-weight: 600 !important;
   box-shadow: none !important;
+}
+
+/* Icon (Success, Warning, Error, dll) */
+.swal2-icon.swal2-success {
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+}
+.swal2-icon.swal2-error {
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+}
+.swal2-icon.swal2-warning {
+  border-color: #f59e0b !important;
+  color: #f59e0b !important;
+}
+
+/* --- CUSTOM SWEETALERT2 TOAST DARK THEME --- */
+.swal2-container {
+  padding: 10px !important;
+}
+
+.swal2-container .swal2-popup {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5) !important;
+  padding: 10px 15px !important;
+  width: auto !important;
+  max-width: 350px !important;
+}
+
+.swal2-container .swal2-title {
+  font-size: 15px !important;
+  color: #f8fafc !important;
+  margin: 0 0 0 10px !important;
+  font-weight: 600 !important;
+}
+
+.swal2-container .swal2-icon {
+  margin: 0 !important;
+  width: 30px !important;
+  height: 30px !important;
+  size: 10px !important;
+}
+
+/* Warna Timer Progress Bar di Toast */
+.swal2-timer-progress-bar {
+  background-color: #3b82f6 !important;
 }
