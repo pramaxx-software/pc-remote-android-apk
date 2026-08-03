@@ -267,9 +267,25 @@ function onScanSuccess(decodedText) {
 
   try {
     let data = JSON.parse(decodedText);
+    console.log(data.resolume_shortcuts);
+
     if (data.ip) document.getElementById("ipInput").value = data.ip;
     if (data.port) document.getElementById("portInput").value = data.port;
     if (data.pin) document.getElementById("pinInput").value = data.pin;
+    if (data.resolume_shortcuts) {
+      const resolumeShortcut = data.resolume_shortcuts;
+      resolumeShortcut.forEach((item) => {
+        macroButtons.push(generateShortcutQr(item));
+      });
+      console.log(macroButtons);
+
+      window.localStorage.setItem(
+        "rem_macro_pad",
+        JSON.stringify(macroButtons),
+      );
+
+      renderButtons();
+    }
 
     toggleConnection();
   } catch (e) {
@@ -726,6 +742,22 @@ function loadMacroButtons() {
   } else {
     macroButtons = [...DEFAULT_BUTTONS];
   }
+}
+
+function generateShortcutQr(key) {
+  return {
+    color: `theme-${mappingGenerateColorMacroPad()}`,
+    key: String(key).toLocaleLowerCase(),
+    label: String(key).toLocaleUpperCase(),
+    type: "press",
+  };
+}
+
+function mappingGenerateColorMacroPad() {
+  const colors = ["blue", "green", "red", "purple", "yellow", "dark"];
+  const randomIndex = Math.floor(Math.random() * colors.length);
+
+  return colors[randomIndex]; // Langsung balikin 1 string warna
 }
 
 function saveMacroButtons() {
