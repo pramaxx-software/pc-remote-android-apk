@@ -279,6 +279,11 @@ function onScanSuccess(decodedText) {
       });
       console.log(macroButtons);
 
+      const localMacroPad= window.localStorage.getItem('rem_macro_pad');
+      if(localMacroPad){
+        window.localStorage.removeItem('rem_macro_pad');
+      }
+
       window.localStorage.setItem(
         "rem_macro_pad",
         JSON.stringify(macroButtons),
