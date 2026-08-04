@@ -267,29 +267,37 @@ function onScanSuccess(decodedText) {
 
   try {
     let data = JSON.parse(decodedText);
-    console.log(data.resolume_shortcuts);
-
+    
     if (data.ip) document.getElementById("ipInput").value = data.ip;
     if (data.port) document.getElementById("portInput").value = data.port;
     if (data.pin) document.getElementById("pinInput").value = data.pin;
-    if (data.resolume_shortcuts) {
-      const resolumeShortcut = data.resolume_shortcuts;
-      resolumeShortcut.forEach((item) => {
-        macroButtons.push(generateShortcutQr(item));
+
+    if (data.resolume_shortcuts && Array.isArray(data.resolume_shortcuts)) {
+      const newShortcuts = data.resolume_shortcuts;
+      
+      // Ambil data yang sudah ada dari localStorage / state
+      loadMacroButtons();
+
+      // Filter & Merge agar TIDAK ADA shortcut yang sama (berdasarkan key)
+      newShortcuts.forEach((item) => {
+        const formattedShortcut = generateShortcutQr(item);
+        
+        // Cek apakah key sudah ada di macroButtons (case-insensitive)
+        const exists = macroButtons.some(
+          (btn) => btn.key.toLowerCase() === formattedShortcut.key.toLowerCase()
+        );
+
+        // Jika belum ada, masukkan ke array
+        if (!exists) {
+          macroButtons.push(formattedShortcut);
+        }
       });
-      console.log(macroButtons);
 
-      const localMacroPad= window.localStorage.getItem('rem_macro_pad');
-      if(localMacroPad){
-        window.localStorage.removeItem('rem_macro_pad');
-      }
-
-      window.localStorage.setItem(
-        "rem_macro_pad",
-        JSON.stringify(macroButtons),
-      );
-
+      // Simpan hasil gabungan yang bersih dari duplikat ke localStorage
+      saveMacroButtons();
       renderButtons();
+      
+      TOAST.success("Shortcut Resolume berhasil disinkronkan!");
     }
 
     toggleConnection();
@@ -305,6 +313,19 @@ function onScanSuccess(decodedText) {
       TOAST.error("Format QR Code tidak dikenali!");
     }
   }
+}
+
+function generateShortcutQr(key) {
+  const cleanKey = String(key).trim().toLowerCase();
+  // Jika ada tanda "+" berarti shortcut kombinasi (tipe: shortcut), jika tidak (tipe: press)
+  const isShortcut = cleanKey.includes("+");
+
+  return {
+    label: cleanKey.toUpperCase(),
+    key: cleanKey,
+    type: isShortcut ? "shortcut" : "press",
+    color: `theme-${mappingGenerateColorMacroPad()}`,
+  };
 }
 
 // ==========================================
@@ -369,6 +390,7 @@ function toggleConnection() {
     document.getElementById("connectionCard").style.display = "none";
     document.getElementById("tabBar").style.display = "flex";
     switchTab("macro");
+    sendToServer({ type: "get_shortcuts" });
   };
 
   ws.onmessage = (event) => {
@@ -469,6 +491,37 @@ function handleServerMessage(data) {
   if (data.type === "stream_error") {
     TOAST.error(data.message || "Screen streaming gagal diaktifkan.");
     stopStreamingAuto();
+  }
+  if (data.type === "sync_shortcuts" || data.resolume_shortcuts) {
+    const shortcuts = data.resolume_shortcuts || data.shortcuts;
+    if (Array.isArray(shortcuts)) {
+      syncResolumeShortcuts(shortcuts);
+    }
+  }
+}
+
+function syncResolumeShortcuts(shortcuts) {
+  loadMacroButtons();
+  let addedCount = 0;
+
+  shortcuts.forEach((item) => {
+    const formatted = generateShortcutQr(item);
+
+    // Cek apakah key sudah ada di macroButtons (case-insensitive)
+    const exists = macroButtons.some(
+      (btn) => btn.key.toLowerCase() === formatted.key.toLowerCase()
+    );
+
+    if (!exists) {
+      macroButtons.push(formatted);
+      addedCount++;
+    }
+  });
+
+  if (addedCount > 0) {
+    saveMacroButtons();
+    renderButtons();
+    TOAST.success(`${addedCount} shortcut baru berhasil disinkronkan!`);
   }
 }
 
@@ -739,7 +792,7 @@ function loadMacroButtons() {
   const saved = localStorage.getItem("rem_macro_pad");
   if (saved) {
     try {
-      macroButtons = JSON.parse(saved);
+      macroButtons = JSON.parse(saved); // Pastikan TIDAK di-comment!
     } catch (err) {
       console.error("Error parsing macro buttons:", err);
       macroButtons = [...DEFAULT_BUTTONS];
@@ -749,14 +802,7 @@ function loadMacroButtons() {
   }
 }
 
-function generateShortcutQr(key) {
-  return {
-    color: `theme-${mappingGenerateColorMacroPad()}`,
-    key: String(key).toLocaleLowerCase(),
-    label: String(key).toLocaleUpperCase(),
-    type: "press",
-  };
-}
+
 
 function mappingGenerateColorMacroPad() {
   const colors = ["blue", "green", "red", "purple", "yellow", "dark"];
