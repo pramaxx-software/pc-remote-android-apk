@@ -197,6 +197,7 @@ let panStartY = null;
 let panOriginX = 0;
 let panOriginY = 0;
 let lastTapTime = 0;
+let sortableMacroPad = null;
 
 // Scanner Instance
 let html5QrcodeScanner = null;
@@ -679,12 +680,13 @@ function switchControlTab(ctrl) {
 // LOGIKA HOLD-TO-REPEAT
 // ==========================================
 function startHold(index, event) {
-  if (event) event.preventDefault();
+  // Jika sedang mode Edit, jangan lakukan apa-apa.
+  // Biarkan event default berjalan agar Sortable bisa membaca geseran drag & drop.
+  // Eksekusi modal edit akan ditangani oleh el.onclick di renderButtons.
+  if (isEditMode) return;
 
-  if (isEditMode) {
-    openEditModal(index);
-    return;
-  }
+  // Hentikan fungsi default browser (seperti scroll / long-press select) khusus saat normal mode
+  if (event && event.cancelable) event.preventDefault();
 
   executeMacro(index);
 
@@ -772,12 +774,20 @@ function renderButtons() {
     const el = document.createElement("div");
     el.className = `macro-btn ${btn.color}`;
 
+    // Event listener untuk menahan (hold)
     el.onmousedown = (e) => startHold(idx, e);
     el.onmouseup = stopHold;
     el.onmouseleave = stopHold;
     el.ontouchstart = (e) => startHold(idx, e);
     el.ontouchend = stopHold;
     el.ontouchcancel = stopHold;
+
+    // BUKA MODAL EDIT VIA KLIK (agar tidak bentrok dengan event drag)
+    el.onclick = () => {
+      if (isEditMode) {
+        openEditModal(idx);
+      }
+    };
 
     el.innerHTML = `
                     <span class="edit-badge">Edit</span>
@@ -792,14 +802,44 @@ function toggleEditMode() {
   isEditMode = !isEditMode;
   const grid = document.getElementById("macroGrid");
   const editBtn = document.getElementById("editModeBtn");
+
   if (isEditMode) {
     grid.classList.add("edit-mode");
     editBtn.innerText = "Selesai";
     editBtn.className = "btn btn-success";
+
+    // INIT SORTABLEJS UNTUK DRAG & DROP
+    if (typeof Sortable !== "undefined") {
+      sortableMacroPad = new Sortable(grid, {
+        animation: 150,
+        delay: 100, // Beri delay sedikit agar layar HP tetap bisa di-scroll
+        delayOnTouchOnly: true,
+        ghostClass: "sortable-ghost",
+        dragClass: "sortable-drag",
+        onEnd: function (evt) {
+          const oldIndex = evt.oldIndex;
+          const newIndex = evt.newIndex;
+          if (oldIndex !== newIndex) {
+            // Pindahkan posisi item di dalam array
+            const movedItem = macroButtons.splice(oldIndex, 1)[0];
+            macroButtons.splice(newIndex, 0, movedItem);
+            saveMacroButtons();
+            // Wajib render ulang agar ID/index DOM selaras dengan Array
+            renderButtons();
+          }
+        },
+      });
+    }
   } else {
     grid.classList.remove("edit-mode");
     editBtn.innerText = "Edit";
     editBtn.className = "btn btn-secondary";
+
+    // MATIKAN SORTABLEJS KETIKA KELUAR MODE EDIT
+    if (sortableMacroPad) {
+      sortableMacroPad.destroy();
+      sortableMacroPad = null;
+    }
   }
 }
 

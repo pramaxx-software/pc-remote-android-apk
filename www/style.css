@@ -815,3 +815,25 @@ input[type="range"] {
 .swal2-timer-progress-bar {
   background-color: #3b82f6 !important;
 }
+
+/* --- SORTABLE JS DRAG & DROP STYLES --- */
+.sortable-ghost {
+  opacity: 0.3 !important;
+  transform: scale(0.9) !important;
+}
+
+.sortable-drag {
+  cursor: grabbing !important;
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Matikan animasi shake saat item sedang di-drag agar tidak visual glitch */
+.edit-mode .macro-btn.sortable-drag,
+.edit-mode .macro-btn.sortable-ghost {
+  animation: none !important;
+}
+
+/* Ubah kursor menjadi grab saat masuk edit mode */
+.edit-mode .macro-btn {
+  cursor: grab;
+}
