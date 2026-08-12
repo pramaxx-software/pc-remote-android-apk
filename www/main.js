@@ -198,6 +198,7 @@ let panOriginX = 0;
 let panOriginY = 0;
 let lastTapTime = 0;
 let sortableMacroPad = null;
+let isDraggingMacro = false;
 
 // Scanner Instance
 let html5QrcodeScanner = null;
@@ -774,7 +775,6 @@ function renderButtons() {
     const el = document.createElement("div");
     el.className = `macro-btn ${btn.color}`;
 
-    // Event listener untuk menahan (hold)
     el.onmousedown = (e) => startHold(idx, e);
     el.onmouseup = stopHold;
     el.onmouseleave = stopHold;
@@ -782,9 +782,14 @@ function renderButtons() {
     el.ontouchend = stopHold;
     el.ontouchcancel = stopHold;
 
-    // BUKA MODAL EDIT VIA KLIK (agar tidak bentrok dengan event drag)
-    el.onclick = () => {
+    // UPDATE DI SINI: Cek flag sebelum buka modal
+    el.onclick = (e) => {
       if (isEditMode) {
+        // Kalau tombol diklik tapi statusnya abis di-drag, batalkan!
+        if (isDraggingMacro) {
+          e.preventDefault();
+          return;
+        }
         openEditModal(idx);
       }
     };
@@ -797,7 +802,6 @@ function renderButtons() {
     grid.appendChild(el);
   });
 }
-
 function toggleEditMode() {
   isEditMode = !isEditMode;
   const grid = document.getElementById("macroGrid");
@@ -808,23 +812,29 @@ function toggleEditMode() {
     editBtn.innerText = "Selesai";
     editBtn.className = "btn btn-success";
 
-    // INIT SORTABLEJS UNTUK DRAG & DROP
     if (typeof Sortable !== "undefined") {
       sortableMacroPad = new Sortable(grid, {
         animation: 150,
-        delay: 100, // Beri delay sedikit agar layar HP tetap bisa di-scroll
+        delay: 150, // Sedikit dinaikkan jadi 150ms agar swipe layar tidak bocor jadi drag
         delayOnTouchOnly: true,
         ghostClass: "sortable-ghost",
         dragClass: "sortable-drag",
+        onStart: function () {
+          // Kasih tau sistem kalau kita lagi nge-drag
+          isDraggingMacro = true;
+        },
         onEnd: function (evt) {
+          // Kasih jeda 100ms sebelum mematikan flag, biar event klik mobile yang delay tertahan
+          setTimeout(() => {
+            isDraggingMacro = false;
+          }, 100);
+
           const oldIndex = evt.oldIndex;
           const newIndex = evt.newIndex;
           if (oldIndex !== newIndex) {
-            // Pindahkan posisi item di dalam array
             const movedItem = macroButtons.splice(oldIndex, 1)[0];
             macroButtons.splice(newIndex, 0, movedItem);
             saveMacroButtons();
-            // Wajib render ulang agar ID/index DOM selaras dengan Array
             renderButtons();
           }
         },
@@ -835,7 +845,6 @@ function toggleEditMode() {
     editBtn.innerText = "Edit";
     editBtn.className = "btn btn-secondary";
 
-    // MATIKAN SORTABLEJS KETIKA KELUAR MODE EDIT
     if (sortableMacroPad) {
       sortableMacroPad.destroy();
       sortableMacroPad = null;
