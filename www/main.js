@@ -406,55 +406,42 @@ function toggleConnection() {
 // ==========================================
 // OPTIMIZED BINARY FRAME HANDLER (CANVAS + BITMAP)
 // ==========================================
-let decodingFrame = false;
-let nextBuffer = null;
 async function handleBinaryFrame(buffer) {
-  if (!buffer || buffer.byteLength < 5) return;
+  if (!buffer || buffer.byteLength < 9) return; // Header baru minimal 9 byte (1 + 4 + 2 + 2)
 
-  // Jika CPU/WebView sedang sibuk mendecode frame sebelumnya,
-  // simpan buffer terbaru dan abaikan frame yang menumpuk di tengah (Cegah Delay/Lag)
-  if (decodingFrame) {
-    nextBuffer = buffer;
+  const view = new DataView(buffer);
+  const msgType = view.getUint8(0);
+  if (msgType !== 1) return;
+
+  // Baca stempel waktu (timestamp) dari server (BigEndian uint32 di byte ke-1)
+  const frameTimestamp = view.getUint32(1, false);
+  const nowMs = Date.now();
+
+  // 🔥 ANTI-DELAY: Jika frame sudah basi lebih dari 250ms (artinya ada antrean / tumpukan lama),
+  // langsung BUANG (drop) seketika tanpa di-decode! Ini langsung membersihkan antrean 20 detik.
+  if (Math.abs(nowMs - frameTimestamp) > 250) {
     return;
   }
 
-  decodingFrame = true;
-  let activeBuffer = buffer;
+  const jpegBytes = new Uint8Array(buffer, 9); // Offset data JPEG mulai dari byte ke-9
+  const blob = new Blob([jpegBytes], { type: "image/jpeg" });
 
   try {
-    while (activeBuffer) {
-      const view = new DataView(activeBuffer);
-      const msgType = view.getUint8(0);
+    const imageBitmap = await createImageBitmap(blob);
 
-      if (msgType === 1) {
-        const jpegBytes = new Uint8Array(activeBuffer, 5);
-        const blob = new Blob([jpegBytes], { type: "image/jpeg" });
+    if (latestImageBitmap) {
+      latestImageBitmap.close();
+    }
+    latestImageBitmap = imageBitmap;
 
-        // Decode secara asinkron
-        const imageBitmap = await createImageBitmap(blob);
-
-        if (latestImageBitmap) {
-          latestImageBitmap.close();
-        }
-        latestImageBitmap = imageBitmap;
-
-        if (!renderRequested) {
-          renderRequested = true;
-          requestAnimationFrame(renderStreamFrame);
-        }
-      }
-
-      // Ambil frame paling fresh yang sempat masuk selama proses decode, buang sisanya
-      activeBuffer = nextBuffer;
-      nextBuffer = null;
+    if (!renderRequested) {
+      renderRequested = true;
+      requestAnimationFrame(renderStreamFrame);
     }
   } catch (err) {
     console.error("Gagal mendecode frame streaming:", err);
-  } finally {
-    decodingFrame = false;
   }
 
-  // Kalkulasi FPS real-time
   if (isStreaming) {
     const now = performance.now();
     if (lastFrameTime) {
