@@ -837,3 +837,13 @@ input[type="range"] {
 .edit-mode .macro-btn {
   cursor: grab;
 }
+
+#screenCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: center center;
+  will-change: transform; /* Memberitahu WebView Android untuk merender layer ini via GPU */
+  backface-visibility: hidden;
+}

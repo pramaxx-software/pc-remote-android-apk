@@ -172,17 +172,19 @@ let isConnected = false;
 let isEditMode = false;
 let holdInterval = null;
 
-// Trackpad & Screen Stream state
+// ==========================================
+// OPTIMIZED SCREEN STREAMING STATE (60 FPS)
+// ==========================================
 let isStreaming = false;
 let lastFrameTime = 0;
 let fpsDisplay = 0;
+let latestImageBitmap = null;
+let renderRequested = false;
+
 let mouseSensitivity = 1.5;
 let dragLastX = null;
 let dragLastY = null;
 let dragMoved = 0;
-
-// Blob URL frame stream saat ini - dilacak biar bisa di-revoke (cegah memory leak saat streaming lama)
-let lastFrameBlobUrl = null;
 
 // Zoom & Pan Screen Stream
 let streamZoom = 1;
@@ -342,8 +344,6 @@ function toggleConnection() {
 
   try {
     ws = new WebSocket(wsUrl);
-    // WAJIB: frame stream sekarang dikirim server sebagai binary (bukan base64 lagi).
-    // Tanpa ini, event.data bakal jadi Blob dan parsing DataView-nya gagal.
     ws.binaryType = "arraybuffer";
   } catch (err) {
     console.error("WebSocket constructor error:", err);
@@ -369,8 +369,6 @@ function toggleConnection() {
   };
 
   ws.onmessage = (event) => {
-    // Frame screen stream datang sebagai binary ArrayBuffer.
-    // Command/status lain (stream_error dll) tetap JSON teks seperti biasa.
     if (event.data instanceof ArrayBuffer) {
       handleBinaryFrame(event.data);
       return;
@@ -406,44 +404,57 @@ function toggleConnection() {
 }
 
 // ==========================================
-// FRAME BINARY DARI SERVER (SCREEN STREAM)
-// Format: [1 byte type=1][2 byte width u16 BE][2 byte height u16 BE][JPEG bytes...]
+// OPTIMIZED BINARY FRAME HANDLER (CANVAS + BITMAP)
 // ==========================================
-function handleBinaryFrame(buffer) {
+let decodingFrame = false;
+let nextBuffer = null;
+async function handleBinaryFrame(buffer) {
   if (!buffer || buffer.byteLength < 5) return;
 
-  const view = new DataView(buffer);
-  const msgType = view.getUint8(0);
-  if (msgType !== 1) return; // tipe lain diabaikan buat sekarang
-
-  const jpegBytes = new Uint8Array(buffer, 5);
-  const blob = new Blob([jpegBytes], { type: "image/jpeg" });
-  const url = URL.createObjectURL(blob);
-
-  const img = document.getElementById("screenImage");
-  const placeholder = document.getElementById("screenPlaceholder");
-  if (!img) {
-    URL.revokeObjectURL(url);
+  // Jika CPU/WebView sedang sibuk mendecode frame sebelumnya,
+  // simpan buffer terbaru dan abaikan frame yang menumpuk di tengah (Cegah Delay/Lag)
+  if (decodingFrame) {
+    nextBuffer = buffer;
     return;
   }
 
-  // Revoke blob URL frame SEBELUMNYA setelah frame baru selesai di-render.
-  // Ini krusial buat streaming realtime - kalau nggak di-revoke, tiap frame
-  // (30-60x/detik) bikin blob nyangkut di memori dan lama-lama app jadi berat/nge-lag.
-  const prevUrl = lastFrameBlobUrl;
-  img.onload = () => {
-    if (prevUrl) URL.revokeObjectURL(prevUrl);
-  };
-  img.onerror = () => {
-    if (prevUrl) URL.revokeObjectURL(prevUrl);
-  };
+  decodingFrame = true;
+  let activeBuffer = buffer;
 
-  img.src = url;
-  lastFrameBlobUrl = url;
+  try {
+    while (activeBuffer) {
+      const view = new DataView(activeBuffer);
+      const msgType = view.getUint8(0);
 
-  img.classList.add("has-frame");
-  if (placeholder) placeholder.style.display = "none";
+      if (msgType === 1) {
+        const jpegBytes = new Uint8Array(activeBuffer, 5);
+        const blob = new Blob([jpegBytes], { type: "image/jpeg" });
 
+        // Decode secara asinkron
+        const imageBitmap = await createImageBitmap(blob);
+
+        if (latestImageBitmap) {
+          latestImageBitmap.close();
+        }
+        latestImageBitmap = imageBitmap;
+
+        if (!renderRequested) {
+          renderRequested = true;
+          requestAnimationFrame(renderStreamFrame);
+        }
+      }
+
+      // Ambil frame paling fresh yang sempat masuk selama proses decode, buang sisanya
+      activeBuffer = nextBuffer;
+      nextBuffer = null;
+    }
+  } catch (err) {
+    console.error("Gagal mendecode frame streaming:", err);
+  } finally {
+    decodingFrame = false;
+  }
+
+  // Kalkulasi FPS real-time
   if (isStreaming) {
     const now = performance.now();
     if (lastFrameTime) {
@@ -459,20 +470,37 @@ function handleBinaryFrame(buffer) {
   }
 }
 
+function renderStreamFrame() {
+  renderRequested = false;
+  if (!latestImageBitmap) return;
+
+  const canvas = document.getElementById("screenCanvas");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d", { alpha: false });
+
+  if (
+    canvas.width !== latestImageBitmap.width ||
+    canvas.height !== latestImageBitmap.height
+  ) {
+    canvas.width = latestImageBitmap.width;
+    canvas.height = latestImageBitmap.height;
+  }
+
+  ctx.drawImage(latestImageBitmap, 0, 0);
+
+  const placeholder = document.getElementById("screenPlaceholder");
+  if (placeholder) placeholder.style.display = "none";
+  canvas.classList.add("has-frame");
+}
+
 // ==========================================
-// PESAN JSON MASUK DARI SERVER (STATUS, ERROR, DLL)
+// PESAN JSON MASUK DARI SERVER
 // ==========================================
 function handleServerMessage(data) {
   if (data.type === "stream_error") {
     TOAST.error(data.message || "Screen streaming gagal diaktifkan.");
     stopStreamingAuto();
-  }
-}
-
-function clearFrameBlobUrl() {
-  if (lastFrameBlobUrl) {
-    URL.revokeObjectURL(lastFrameBlobUrl);
-    lastFrameBlobUrl = null;
   }
 }
 
@@ -506,15 +534,19 @@ function resetUI() {
   exitFullscreenSafe();
   unlockOrientation();
 
-  const img = document.getElementById("screenImage");
+  const canvas = document.getElementById("screenCanvas");
   const placeholder = document.getElementById("screenPlaceholder");
-  if (img) {
-    img.classList.remove("has-frame");
-    img.src = "";
+  if (canvas) {
+    canvas.classList.remove("has-frame");
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
   if (placeholder) placeholder.style.display = "flex";
 
-  clearFrameBlobUrl();
+  if (latestImageBitmap) {
+    latestImageBitmap.close();
+    latestImageBitmap = null;
+  }
 }
 
 // ==========================================
@@ -629,8 +661,6 @@ function unlockOrientation() {
   }
 }
 
-// Kalau user keluar fullscreen lewat tombol back sistem/gesture,
-// sinkronkan UI kembali ke tab Macro
 function handleFullscreenChange() {
   const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
   const streamPanel = document.getElementById("panel-stream");
@@ -642,7 +672,7 @@ document.addEventListener("fullscreenchange", handleFullscreenChange);
 document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
 
 // ==========================================
-// FLOATING CONTROL DRAWER (MOUSE & KEYBOARD)
+// FLOATING CONTROL DRAWER
 // ==========================================
 function toggleControlDrawer() {
   const drawer = document.getElementById("controlDrawer");
@@ -655,7 +685,6 @@ function toggleControlDrawer() {
   if (stage) stage.classList.toggle("drawer-open", willOpen);
   if (fab) fab.classList.toggle("faded", willOpen);
 
-  // Area video berubah ukuran (transisi 0.25s) -> re-clamp pan biar gambar gak nyangkut di luar frame
   if (streamZoom > 1) {
     setTimeout(() => {
       clampStreamPan();
@@ -681,12 +710,7 @@ function switchControlTab(ctrl) {
 // LOGIKA HOLD-TO-REPEAT
 // ==========================================
 function startHold(index, event) {
-  // Jika sedang mode Edit, jangan lakukan apa-apa.
-  // Biarkan event default berjalan agar Sortable bisa membaca geseran drag & drop.
-  // Eksekusi modal edit akan ditangani oleh el.onclick di renderButtons.
   if (isEditMode) return;
-
-  // Hentikan fungsi default browser (seperti scroll / long-press select) khusus saat normal mode
   if (event && event.cancelable) event.preventDefault();
 
   executeMacro(index);
@@ -731,7 +755,7 @@ function executeMacro(index) {
 }
 
 // ==========================================
-// RENDER & MANAGEMENT TOMBOL (TAMBAH & EDIT)
+// RENDER & MANAGEMENT TOMBOL
 // ==========================================
 function loadMacroButtons() {
   const saved = localStorage.getItem("rem_macro_pad");
@@ -759,8 +783,7 @@ function generateShortcutQr(key) {
 function mappingGenerateColorMacroPad() {
   const colors = ["blue", "green", "red", "purple", "yellow", "dark"];
   const randomIndex = Math.floor(Math.random() * colors.length);
-
-  return colors[randomIndex]; // Langsung balikin 1 string warna
+  return colors[randomIndex];
 }
 
 function saveMacroButtons() {
@@ -782,10 +805,8 @@ function renderButtons() {
     el.ontouchend = stopHold;
     el.ontouchcancel = stopHold;
 
-    // UPDATE DI SINI: Cek flag sebelum buka modal
     el.onclick = (e) => {
       if (isEditMode) {
-        // Kalau tombol diklik tapi statusnya abis di-drag, batalkan!
         if (isDraggingMacro) {
           e.preventDefault();
           return;
@@ -802,6 +823,7 @@ function renderButtons() {
     grid.appendChild(el);
   });
 }
+
 function toggleEditMode() {
   isEditMode = !isEditMode;
   const grid = document.getElementById("macroGrid");
@@ -815,16 +837,14 @@ function toggleEditMode() {
     if (typeof Sortable !== "undefined") {
       sortableMacroPad = new Sortable(grid, {
         animation: 150,
-        delay: 150, // Sedikit dinaikkan jadi 150ms agar swipe layar tidak bocor jadi drag
+        delay: 150,
         delayOnTouchOnly: true,
         ghostClass: "sortable-ghost",
         dragClass: "sortable-drag",
         onStart: function () {
-          // Kasih tau sistem kalau kita lagi nge-drag
           isDraggingMacro = true;
         },
         onEnd: function (evt) {
-          // Kasih jeda 100ms sebelum mematikan flag, biar event klik mobile yang delay tertahan
           setTimeout(() => {
             isDraggingMacro = false;
           }, 100);
@@ -919,9 +939,9 @@ function deleteMacroButton(index) {
     showCancelButton: true,
     confirmButtonText: "Ya, Hapus",
     cancelButtonText: "Batal",
-    buttonsStyling: false, // Wajib false agar menggunakan custom class CSS kita
+    buttonsStyling: false,
     customClass: {
-      confirmButton: "swal2-confirm swal2-deny", // Pakai style tombol merah
+      confirmButton: "swal2-confirm swal2-deny",
       cancelButton: "swal2-cancel",
     },
   }).then((result) => {
@@ -955,7 +975,6 @@ function setupTrackpad() {
   const pad = document.getElementById("trackpadArea");
   if (!pad) return;
 
-  // Touch (Android/mobile)
   pad.addEventListener(
     "touchstart",
     (e) => {
@@ -980,7 +999,6 @@ function setupTrackpad() {
     handleTrackpadRelease();
   });
 
-  // Mouse (buat testing di browser desktop)
   let mouseDown = false;
   pad.addEventListener("mousedown", (e) => {
     mouseDown = true;
@@ -998,7 +1016,6 @@ function setupTrackpad() {
     handleTrackpadRelease();
   });
 
-  // Scroll dengan mouse wheel (testing di browser)
   pad.addEventListener(
     "wheel",
     (e) => {
@@ -1055,7 +1072,7 @@ function onSensitivityChange(value) {
 }
 
 // ==========================================
-// FITUR SCREEN STREAMING (AUTO SAAT MASUK TAB STREAM)
+// FITUR SCREEN STREAMING CONTROLLER
 // ==========================================
 function startStreamingAuto() {
   if (!isConnected) return;
@@ -1084,16 +1101,23 @@ function stopStreamingAuto() {
     statusEl.className = "stream-status-pill";
   }
 
-  const img = document.getElementById("screenImage");
+  const canvas = document.getElementById("screenCanvas");
   const placeholder = document.getElementById("screenPlaceholder");
-  if (img) img.classList.remove("has-frame");
+  if (canvas) {
+    canvas.classList.remove("has-frame");
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
   if (placeholder) placeholder.style.display = "flex";
 
-  clearFrameBlobUrl();
+  if (latestImageBitmap) {
+    latestImageBitmap.close();
+    latestImageBitmap = null;
+  }
 }
 
 // ==========================================
-// FITUR KEYBOARD DI DALAM CONTROL DRAWER
+// FITUR KEYBOARD
 // ==========================================
 const STREAM_KEY_MAP = {
   Enter: "enter",
@@ -1144,7 +1168,6 @@ function sendDrawerShortcut() {
 
 // ==========================================
 // FITUR ZOOM & PAN SCREEN STREAM
-// Pinch 2 jari, double-tap, atau tombol +/-/reset
 // ==========================================
 function setupStreamZoom() {
   const stage = document.getElementById("streamStage");
@@ -1155,7 +1178,6 @@ function setupStreamZoom() {
   stage.addEventListener("touchend", onStreamTouchEnd, { passive: false });
   stage.addEventListener("touchcancel", onStreamTouchEnd, { passive: false });
 
-  // Testing di browser desktop: Ctrl+Scroll buat zoom, double click buat quick zoom
   stage.addEventListener(
     "wheel",
     (e) => {
@@ -1165,7 +1187,6 @@ function setupStreamZoom() {
     },
     { passive: false },
   );
-  // stage.addEventListener("dblclick", () => toggleQuickZoom());
 }
 
 function streamTouchDistance(t1, t2) {
@@ -1175,7 +1196,6 @@ function streamTouchDistance(t1, t2) {
 }
 
 function onStreamTouchStart(e) {
-  // Jangan ganggu tap tombol FAB/exit/zoom toolbar yang menumpuk di atas stage
   if (
     e.target.closest(
       ".fab-btn, .exit-stream-btn, .zoom-toolbar, .control-drawer",
@@ -1260,12 +1280,12 @@ function resetStreamZoom() {
 }
 
 function clampStreamPan() {
-  const img = document.getElementById("screenImage");
+  const canvas = document.getElementById("screenCanvas");
   const stage = document.getElementById("streamStage");
-  if (!img || !stage) return;
+  if (!canvas || !stage) return;
 
-  const baseW = img.offsetWidth;
-  const baseH = img.offsetHeight;
+  const baseW = canvas.offsetWidth;
+  const baseH = canvas.offsetHeight;
   if (!baseW || !baseH) return;
 
   const scaledW = baseW * streamZoom;
@@ -1279,9 +1299,9 @@ function clampStreamPan() {
 }
 
 function applyStreamTransform() {
-  const img = document.getElementById("screenImage");
-  if (!img) return;
-  img.style.transform = `translate(${streamPanX}px, ${streamPanY}px) scale(${streamZoom})`;
+  const canvas = document.getElementById("screenCanvas");
+  if (!canvas) return;
+  canvas.style.transform = `translate(${streamPanX}px, ${streamPanY}px) scale(${streamZoom})`;
 }
 
 function updateZoomLabel() {
